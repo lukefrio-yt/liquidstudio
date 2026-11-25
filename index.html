@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Liquid Glass SDF — WebGL2 4K Studio</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.4/build/mp4-muxer.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #04060c;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas:active { cursor: grabbing; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #38bdf8;
+      border: 2px solid #0f172a;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.65);
+      transition: transform 0.12s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.18); }
+    input[type="range"]::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #38bdf8;
+      border: 2px solid #0f172a;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.65);
+    }
+
+    .panel-scroll::-webkit-scrollbar { width: 5px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+    .panel-scroll::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="glcanvas"></canvas>
+
+  <!-- Top Bar (Responsive for Mobile & Desktop) -->
+  <header class="fixed top-2.5 left-2.5 right-2.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <div class="px-2.5 py-1.5 rounded-full bg-slate-950/70 backdrop-blur-xl border border-white/15 shadow-lg flex items-center gap-2 pointer-events-auto">
+      <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+      <span class="text-[11px] sm:text-xs font-semibold tracking-wide text-slate-100">LIQUID GLASS</span>
+      <span id="texBadge" class="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-400/20">RGBA16F</span>
+      <span id="fpsBadge" class="text-[10px] font-mono text-slate-400">-- fps</span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-1.5 pointer-events-auto">
+      <button id="recordBtn" class="px-2.5 py-1.5 rounded-full bg-slate-950/70 hover:bg-slate-900/90 backdrop-blur-xl border border-white/15 text-[11px] sm:text-xs font-medium text-slate-200 transition shadow-lg flex items-center gap-1.5">
+        <span id="recordDot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+        <span id="recordLabel">Nahrávat</span>
+      </button>
+      <button id="pulseBtn" class="px-2.5 py-1.5 rounded-full bg-sky-500/20 hover:bg-sky-500/35 backdrop-blur-xl border border-sky-400/30 text-[11px] sm:text-xs font-medium text-sky-200 transition shadow-lg">
+        Vlna
+      </button>
+      <button id="resetCamBtn" class="hidden sm:inline-flex px-2.5 py-1.5 rounded-full bg-slate-950/70 hover:bg-slate-900/90 backdrop-blur-xl border border-white/15 text-xs font-medium text-slate-300 hover:text-white transition shadow-lg">
+        Reset pohledu
+      </button>
+      <button id="langBtn" class="px-2.5 py-1.5 rounded-full bg-slate-950/70 hover:bg-slate-900/90 backdrop-blur-xl border border-white/15 text-[11px] sm:text-xs font-semibold text-slate-200 transition shadow-lg">
+        CS
+      </button>
+      <button id="togglePanelBtn" class="px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-950/70 hover:bg-slate-900/90 backdrop-blur-xl border border-white/15 text-[11px] sm:text-xs font-medium text-sky-300 hover:text-sky-200 transition shadow-lg flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+        <span id="toggleLabel">Skrýt</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Toast Status Banner (Outside Canvas) -->
+  <div id="toastBanner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full bg-slate-900/90 backdrop-blur-xl border border-sky-400/30 text-xs font-medium text-sky-100 shadow-2xl pointer-events-none"></div>
+
+  <!-- Offline 4K Render Progress Overlay -->
+  <div id="exportProgressModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-slate-900/95 border border-white/15 p-5 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between">
+        <span id="exportProgTitle" class="text-xs font-semibold text-white">Renderuji 4K MP4...</span>
+        <span id="exportProgPct" class="text-xs font-mono text-sky-300">0%</span>
+      </div>
+      <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+        <div id="exportProgBar" class="h-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-75" style="width: 0%"></div>
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-400">
+        <span id="exportProgDetail">0 / 0 snímků</span>
+        <button id="cancelExportBtn" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 border border-rose-400/30 text-rose-200 font-medium transition">Zrušit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Responsive Control Panel -->
+  <aside id="controlPanel" class="fixed bottom-0 left-0 right-0 max-h-[56vh] rounded-t-2xl sm:top-14 sm:right-3 sm:bottom-3 sm:left-auto sm:w-80 sm:max-h-none sm:rounded-2xl z-20 bg-slate-950/80 backdrop-blur-2xl border border-white/15 shadow-2xl flex flex-col overflow-hidden transition-all duration-200">
+    <!-- Panel Tabs -->
+    <div class="grid grid-cols-4 gap-1 p-2 border-b border-white/10 bg-white/[0.03]">
+      <button data-tab="style" class="tab-btn py-1.5 rounded-lg text-[11px] font-semibold transition"></button>
+      <button data-tab="optics" class="tab-btn py-1.5 rounded-lg text-[11px] font-semibold transition"></button>
+      <button data-tab="scene" class="tab-btn py-1.5 rounded-lg text-[11px] font-semibold transition"></button>
+      <button data-tab="export" class="tab-btn py-1.5 rounded-lg text-[11px] font-semibold transition"></button>
+    </div>
+
+    <div class="panel-scroll flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-3.5">
+
+      <!-- TAB 1: STYLE, TEXT, FONT, SVG, SHAPES & SAVED SCENES -->
+      <div id="tab-style" class="tab-pane space-y-3.5">
+        <!-- Core Text, Font & SVG Logo -->
+        <section class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+          <div class="flex items-center justify-between">
+            <h2 data-i18n="coreTextTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Vyrytý text / SVG</h2>
+            <span class="text-[10px] font-mono text-slate-500">RGBA16F</span>
+          </div>
+          <input id="coreTextInput" type="text" maxlength="20" value="<Váš Text>"
+            class="w-full px-3 py-2 rounded-lg bg-slate-900/70 border border-white/15 focus:border-sky-400/70 focus:outline-none text-xs font-medium text-white placeholder-slate-500 transition" />
+          <div class="grid grid-cols-2 gap-1.5">
+            <select id="fontSelect" class="px-2 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-[11px] text-slate-200 focus:outline-none">
+              <option value="Inter, system-ui, sans-serif">Modern Sans</option>
+              <option value="Georgia, 'Times New Roman', serif">Editorial Serif</option>
+              <option value="'Courier New', ui-monospace, monospace">Tech Mono</option>
+              <option value="ui-rounded, 'SF Pro Rounded', system-ui, sans-serif">Rounded</option>
+            </select>
+            <label class="px-2 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/30 text-[11px] font-medium text-sky-200 text-center cursor-pointer transition truncate">
+              <span data-i18n="uploadSvgBtn">+ Nahrát SVG</span>
+              <input id="svgUploadInput" type="file" accept=".svg,image/svg+xml" class="hidden" />
+            </label>
+          </div>
+          <button id="clearSvgBtn" class="hidden w-full py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/30 text-[11px] font-medium text-rose-200 transition">
+            Zrušit SVG (zpět na text)
+          </button>
+        </section>
+
+        <!-- 3D Volume Shapes -->
+        <section class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+          <h2 data-i18n="shapesTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tvar objemu (3D SDF)</h2>
+          <div id="shapeGrid" class="grid grid-cols-3 gap-1.5">
+            <button data-shape="0" data-i18n="shapePill" class="shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition">Kapsle</button>
+            <button data-shape="1" data-i18n="shapeSphere" class="shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition">Koule</button>
+            <button data-shape="2" data-i18n="shapeCube" class="shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition">Čtverec</button>
+            <button data-shape="3" data-i18n="shapeDisc" class="shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition">Disk</button>
+            <button data-shape="4" data-i18n="shapeTorus" class="shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition">Prstenec</button>
+            <button data-shape="5" data-i18n="shapeCrystal" class="shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition">Krystal</button>
+          </div>
+        </section>
+
+        <!-- Color Themes & Pickers -->
+        <section class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2.5">
+          <h2 data-i18n="colorsTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Barvy a palety</h2>
+          <div id="colorSwatches" class="grid grid-cols-6 gap-1.5">
+            <button data-theme="glacial" title="Glacial Cyan" class="swatch-btn h-7 rounded-lg border border-white/25 bg-gradient-to-br from-sky-300 to-blue-600 hover:scale-105 transition"></button>
+            <button data-theme="aurora" title="Violet Aurora" class="swatch-btn h-7 rounded-lg border border-white/25 bg-gradient-to-br from-fuchsia-400 to-indigo-600 hover:scale-105 transition"></button>
+            <button data-theme="emerald" title="Emerald Mint" class="swatch-btn h-7 rounded-lg border border-white/25 bg-gradient-to-br from-emerald-300 to-teal-700 hover:scale-105 transition"></button>
+            <button data-theme="amber" title="Sunset Amber" class="swatch-btn h-7 rounded-lg border border-white/25 bg-gradient-to-br from-amber-300 to-rose-600 hover:scale-105 transition"></button>
+            <button data-theme="rose" title="Rose Quartz" class="swatch-btn h-7 rounded-lg border border-white/25 bg-gradient-to-br from-pink-300 to-purple-700 hover:scale-105 transition"></button>
+            <button data-theme="obsidian" title="Crystal Ice" class="swatch-btn h-7 rounded-lg border border-white/25 bg-gradient-to-br from-slate-100 to-slate-600 hover:scale-105 transition"></button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/10 text-[11px] text-slate-300 cursor-pointer">
+              <span data-i18n="lblTint">Odstín skla</span>
+              <input id="tintColor" type="color" value="#38bdf8" class="w-5 h-4 rounded bg-transparent border-0 cursor-pointer" />
+            </label>
+            <label class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/10 text-[11px] text-slate-300 cursor-pointer">
+              <span data-i18n="lblCoreColor">Záře jádra</span>
+              <input id="coreColor" type="color" value="#a5f3fc" class="w-5 h-4 rounded bg-transparent border-0 cursor-pointer" />
+            </label>
+            <label class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/10 text-[11px] text-slate-300 cursor-pointer">
+              <span data-i18n="lblBgColor">Pozadí</span>
+              <input id="bgColor" type="color" value="#0c1b3a" class="w-5 h-4 rounded bg-transparent border-0 cursor-pointer" />
+            </label>
+            <label class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/10 text-[11px] text-slate-300 cursor-pointer">
+              <span data-i18n="lblLightColor">Světlo</span>
+              <input id="lightColor" type="color" value="#e0f2fe" class="w-5 h-4 rounded bg-transparent border-0 cursor-pointer" />
+            </label>
+          </div>
+        </section>
+
+        <!-- Material Presets -->
+        <section class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+          <h2 data-i18n="presetsTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Presety materiálu</h2>
+          <div id="presetGrid" class="grid grid-cols-2 gap-1.5">
+            <button data-preset="liquid" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition">Liquid Glass</button>
+            <button data-preset="water" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition">Clear Water</button>
+            <button data-preset="crown" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition">Crown Glass</button>
+            <button data-preset="frost" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition">Frosted Quartz</button>
+            <button data-preset="abyss" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition">Deep Abyss</button>
+            <button data-preset="diamond" class="preset-btn col-span-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition">Prism Diamond (High Dispersion)</button>
+          </div>
+        </section>
+
+        <!-- Saved User Scenes (LocalStorage + JSON) -->
+        <section class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+          <h2 data-i18n="savedScenesTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Uložené scény</h2>
+          <div class="flex gap-1.5">
+            <input id="sceneNameInput" type="text" maxlength="24" placeholder="Název scény..."
+              class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-900/70 border border-white/15 text-[11px] text-white focus:outline-none" />
+            <button id="saveSceneBtn" class="px-2.5 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/30 text-[11px] font-medium text-sky-200 transition">Uložit</button>
+          </div>
+          <div id="savedScenesList" class="space-y-1 max-h-28 overflow-y-auto panel-scroll"></div>
+          <div class="grid grid-cols-2 gap-1.5 pt-1">
+            <button id="exportJsonBtn" class="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300 transition">Export JSON</button>
+            <label class="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-300 text-center cursor-pointer transition">
+              <span data-i18n="importJsonBtn">Import JSON</span>
+              <input id="importJsonInput" type="file" accept=".json,application/json" class="hidden" />
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <!-- TAB 2: OPTICS & CORE -->
+      <div id="tab-optics" class="tab-pane hidden space-y-3">
+        <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
+          <h2 data-i18n="opticsTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Optika a námraza</h2>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblIor" class="text-slate-300">Index lomu (IOR)</span><span id="val-ior" class="font-mono text-sky-300">1.38</span></div>
+            <input id="sl-ior" type="range" min="1.05" max="2.40" step="0.01" value="1.38" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblDispersion" class="text-slate-300">Chromatická disperze</span><span id="val-dispersion" class="font-mono text-sky-300">0.055</span></div>
+            <input id="sl-dispersion" type="range" min="0.000" max="0.180" step="0.002" value="0.055" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblFrost" class="text-slate-300">Námraza povrchu</span><span id="val-frost" class="font-mono text-sky-300">0.04</span></div>
+            <input id="sl-frost" type="range" min="0.00" max="1.00" step="0.01" value="0.04" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblCoreFrost" class="text-slate-300">Matování jádra</span><span id="val-coreFrost" class="font-mono text-sky-300">0.62</span></div>
+            <input id="sl-coreFrost" type="range" min="0.00" max="1.00" step="0.01" value="0.62" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblIridescence" class="text-slate-300">Duhová hrana</span><span id="val-iridescence" class="font-mono text-sky-300">0.45</span></div>
+            <input id="sl-iridescence" type="range" min="0.00" max="1.20" step="0.02" value="0.45" />
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
+          <h2 data-i18n="coreSettingsTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Nastavení jádra</h2>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblCoreScale" class="text-slate-300">Velikost textu</span><span id="val-coreScale" class="font-mono text-sky-300">1.00</span></div>
+            <input id="sl-coreScale" type="range" min="0.45" max="1.45" step="0.01" value="1.00" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblCoreDepth" class="text-slate-300">Hloubka rytí</span><span id="val-coreDepth" class="font-mono text-sky-300">0.080</span></div>
+            <input id="sl-coreDepth" type="range" min="0.02" max="0.22" step="0.005" value="0.08" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblCoreGlow" class="text-slate-300">Záře rytého jádra</span><span id="val-coreGlow" class="font-mono text-sky-300">0.70</span></div>
+            <input id="sl-coreGlow" type="range" min="0.00" max="1.50" step="0.02" value="0.70" />
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: SCENE, LIGHT & MOTION -->
+      <div id="tab-scene" class="tab-pane hidden space-y-3">
+        <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
+          <h2 data-i18n="lightTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Světlo a kamera</h2>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblAzimuth" class="text-slate-300">Azimut světla</span><span id="val-lightAzimuth" class="font-mono text-sky-300">38°</span></div>
+            <input id="sl-lightAzimuth" type="range" min="0" max="360" step="1" value="38" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblElevation" class="text-slate-300">Výška světla</span><span id="val-lightElevation" class="font-mono text-sky-300">42°</span></div>
+            <input id="sl-lightElevation" type="range" min="-30" max="85" step="1" value="42" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblIntensity" class="text-slate-300">Intenzita světla</span><span id="val-lightIntensity" class="font-mono text-sky-300">1.75</span></div>
+            <input id="sl-lightIntensity" type="range" min="0.20" max="3.00" step="0.05" value="1.75" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblFov" class="text-slate-300">Ohnisko / Zoom</span><span id="val-fov" class="font-mono text-sky-300">1.85</span></div>
+            <input id="sl-fov" type="range" min="1.20" max="2.80" step="0.05" value="1.85" />
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
+          <h2 data-i18n="volumeTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Objem a pohyb</h2>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblAbsorption" class="text-slate-300">Hustota absorpce</span><span id="val-absorption" class="font-mono text-sky-300">0.36</span></div>
+            <input id="sl-absorption" type="range" min="0.00" max="2.50" step="0.02" value="0.36" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblRoundness" class="text-slate-300">Tekutá kulatost</span><span id="val-roundness" class="font-mono text-sky-300">0.68</span></div>
+            <input id="sl-roundness" type="range" min="0.04" max="0.95" step="0.01" value="0.68" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblRipples" class="text-slate-300">Tekuté vlnění</span><span id="val-ripples" class="font-mono text-sky-300">0.55</span></div>
+            <input id="sl-ripples" type="range" min="0.00" max="1.00" step="0.01" value="0.55" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblFlowSpeed" class="text-slate-300">Rychlost proudění</span><span id="val-flowSpeed" class="font-mono text-sky-300">1.00</span></div>
+            <input id="sl-flowSpeed" type="range" min="0.00" max="2.50" step="0.05" value="1.00" />
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblAutoSpin" class="text-slate-300">Auto-rotace kamery</span><span id="val-autoSpin" class="font-mono text-sky-300">0.00</span></div>
+            <input id="sl-autoSpin" type="range" min="-1.20" max="1.20" step="0.05" value="0.00" />
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: KEYFRAMES, ACTION REPLAY & 4K EXPORT -->
+      <div id="tab-export" class="tab-pane hidden space-y-3">
+        <!-- Scene Keyframes (Camera + Colors + Optics) -->
+        <section class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h2 data-i18n="keyframesTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Keyframy scény</h2>
+            <button id="addKfBtn" class="px-2 py-1 rounded-md bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/30 text-[11px] font-medium text-sky-200 transition">+ Keyframe</button>
+          </div>
+          <div id="kfList" class="space-y-1.5 max-h-28 overflow-y-auto panel-scroll pr-1"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="playKfBtn" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/30 text-xs font-medium text-emerald-200 transition">Přehrát</button>
+            <button id="clearKfBtn" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 transition">Smazat</button>
+          </div>
+          <div>
+            <label data-i18n="lblLoopMode" class="block text-[10px] text-slate-400 mb-1">Režim smyčky</label>
+            <select id="kfLoopMode" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-xs text-slate-200 focus:outline-none">
+              <option value="pingpong">Ping-Pong (bez skoku)</option>
+              <option value="loop">Plynulá smyčka (konec → start)</option>
+              <option value="once">Jednorázově</option>
+            </select>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span data-i18n="lblKfDuration" class="text-slate-300">Délka přechodu</span><span id="val-kfDuration" class="font-mono text-sky-300">2.50s</span></div>
+            <input id="sl-kfDuration" type="range" min="0.5" max="8.0" step="0.25" value="2.5" />
+          </div>
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+            <span data-i18n="lblKfMorph">Plynule měnit barvy a optiku</span>
+            <input id="kfMorphChk" type="checkbox" checked class="accent-sky-400 w-4 h-4 rounded" />
+          </label>
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+            <span data-i18n="lblKfPulse">Vlna při průjezdu keyframem</span>
+            <input id="kfPulseChk" type="checkbox" checked class="accent-sky-400 w-4 h-4 rounded" />
+          </label>
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+            <span data-i18n="lblAutoWave">Pravidelné pulzní vlny</span>
+            <input id="autoWaveChk" type="checkbox" class="accent-sky-400 w-4 h-4 rounded" />
+          </label>
+        </section>
+
+        <!-- Action Replay Recorder -->
+        <section class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+          <div class="flex items-center justify-between">
+            <h2 data-i18n="actionReplayTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Záznam interakcí (Replay)</h2>
+            <span id="actionStatusBadge" class="text-[10px] font-mono text-slate-400">0s</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="recActionBtn" class="px-2 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 border border-rose-400/30 text-[11px] font-medium text-rose-200 transition">Zaznamenat tahy</button>
+            <button id="playActionBtn" class="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-[11px] font-medium text-slate-200 transition">Přehrát tahy</button>
+          </div>
+          <button id="exportActionVideoBtn" class="w-full py-1.5 px-3 rounded-lg bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-400/30 text-[11px] font-medium text-indigo-200 transition">
+            Exportovat záznam tahů (4K)
+          </button>
+        </section>
+
+        <!-- Clean 4K Export -->
+        <section class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2.5">
+          <h2 data-i18n="exportTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Čistý export (bez UI)</h2>
+          <div class="grid grid-cols-3 gap-1.5">
+            <div>
+              <label data-i18n="lblRes" class="block text-[10px] text-slate-400 mb-1">Rozlišení</label>
+              <select id="exportRes" class="w-full px-1.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-[11px] text-slate-200 focus:outline-none">
+                <option value="1080">1080p</option>
+                <option value="1440">1440p</option>
+                <option value="2160" selected>4K</option>
+              </select>
+            </div>
+            <div>
+              <label data-i18n="lblAspect" class="block text-[10px] text-slate-400 mb-1">Poměr</label>
+              <select id="exportAspect" class="w-full px-1.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-[11px] text-slate-200 focus:outline-none">
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="1:1">1:1</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400 mb-1">FPS</label>
+              <select id="exportFps" class="w-full px-1.5 py-1.5 rounded-lg bg-slate-900 border border-white/15 text-[11px] text-slate-200 focus:outline-none">
+                <option value="30">30 fps</option>
+                <option value="60" selected>60 fps</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="exportKfVideoBtn" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-xs font-semibold text-white shadow-lg transition">
+            Exportovat 4K Keyframe video
+          </button>
+          <button id="exportPngBtn" class="w-full py-1.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-medium text-slate-200 transition">
+            Uložit 4K PNG snímek
+          </button>
+          <p id="exportHint" class="text-[10px] text-slate-400 leading-relaxed"></p>
+        </section>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Error fallback -->
+  <div id="errorBox" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-6">
+    <div class="max-w-md rounded-2xl bg-slate-900 border border-red-500/30 p-6 text-center space-y-3">
+      <h3 class="text-base font-semibold text-red-400">WebGL2 Initialization Error</h3>
+      <p id="errorMsg" class="text-xs text-slate-300 font-mono whitespace-pre-wrap"></p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById('glcanvas');
+      const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+      const errorBox = document.getElementById('errorBox');
+      const errorMsg = document.getElementById('errorMsg');
+
+      function showError(msg) {
+        errorMsg.textContent = msg;
+        errorBox.classList.remove('hidden');
+      }
+
+      if (!gl) {
+        showError('WebGL2 is not supported in this browser or context.');
+        return;
+      }
+
+      // -----------------------------------------------------------------------
+      // 1. i18n (Czech & English)
+      // -----------------------------------------------------------------------
+      const i18n = {
+        cs: {
+          tabStyle: 'Styl',
+          tabOptics: 'Optika',
+          tabScene: 'Scéna',
+          tabExport: 'Export',
+          coreTextTitle: 'Vyrytý text / SVG',
+          uploadSvgBtn: '+ Nahrát SVG',
+          clearSvgBtn: 'Zrušit SVG (zpět na text)',
+          shapesTitle: 'Tvar objemu (3D SDF)',
+          shapePill: 'Kapsle',
+          shapeSphere: 'Koule',
+          shapeCube: 'Čtverec',
+          shapeDisc: 'Disk',
+          shapeTorus: 'Prstenec',
+          shapeCrystal: 'Krystal',
+          colorsTitle: 'Barvy a palety',
+          lblTint: 'Odstín skla',
+          lblCoreColor: 'Záře jádra',
+          lblBgColor: 'Pozadí',
+          lblLightColor: 'Světlo',
+          presetsTitle: 'Presety materiálu',
+          savedScenesTitle: 'Uložené scény',
+          scenePlaceholder: 'Název scény...',
+          saveSceneBtn: 'Uložit',
+          importJsonBtn: 'Import JSON',
+          opticsTitle: 'Optika a námraza',
+          coreSettingsTitle: 'Nastavení jádra',
+          lblIor: 'Index lomu (IOR)',
+          lblDispersion: 'Chromatická disperze',
+          lblFrost: 'Námraza povrchu',
+          lblCoreFrost: 'Matování jádra',
+          lblIridescence: 'Duhová hrana',
+          lblCoreScale: 'Velikost textu',
+          lblCoreDepth: 'Hloubka rytí',
+          lblCoreGlow: 'Záře rytého jádra',
+          lightTitle: 'Světlo a kamera',
+          volumeTitle: 'Objem a pohyb',
+          lblAzimuth: 'Azimut světla',
+          lblElevation: 'Výška světla',
+          lblIntensity: 'Intenzita světla',
+          lblAbsorption: 'Hustota absorpce',
+          lblRoundness: 'Tekutá kulatost',
+          lblRipples: 'Tekuté vlnění',
+          lblFlowSpeed: 'Rychlost proudění',
+          lblAutoSpin: 'Auto-rotace kamery',
+          lblFov: 'Ohnisko / Zoom',
+          keyframesTitle: 'Keyframy scény',
+          addKf: '+ Keyframe',
+          playKf: 'Přehrát',
+          stopKf: 'Zastavit',
+          clearKf: 'Smazat',
+          lblLoopMode: 'Režim smyčky',
+          loopPingPong: 'Ping-Pong (bez skoku)',
+          loopSmooth: 'Plynulá smyčka (konec → start)',
+          loopOnce: 'Jednorázově',
+          lblKfDuration: 'Délka přechodu',
+          lblKfMorph: 'Plynule měnit barvy a optiku',
+          lblKfPulse: 'Vlna při průjezdu keyframem',
+          lblAutoWave: 'Pravidelné pulzní vlny',
+          actionReplayTitle: 'Záznam interakcí (Replay)',
+          recActionStart: 'Zaznamenat tahy',
+          recActionStop: 'Ukončit záznam',
+          playAction: 'Přehrát tahy',
+          stopAction: 'Zastavit',
+          exportAction: 'Exportovat záznam tahů (4K)',
+          exportTitle: 'Čistý export (bez UI)',
+          lblRes: 'Rozlišení',
+          lblAspect: 'Poměr stran',
+          exportVideo: 'Exportovat 4K Keyframe video',
+          exportPng: 'Uložit 4K PNG snímek',
+          exportHint: 'Nahrávání i export snímají čisté WebGL2 plátno bez tlačítek Controls a nastavení. Dvěma prsty na mobilu nebo kolečkem myši přibližuj a oddaluj.',
+          recStart: 'Nahrávat',
+          recStop: 'Stop',
+          pulse: 'Vlna',
+          resetView: 'Reset pohledu',
+          controls: 'Ovládání',
+          hideControls: 'Skrýt',
+          defaultCoreText: '<Váš Text>',
+          toastRecStarted: 'Nahrávání spuštěno (čistý obraz bez UI)...',
+          toastRecSaved: 'Záznam stažen!',
+          toastExporting: 'Exportuji čisté video bez UI...',
+          toastExportDone: 'Export videa dokončen!',
+          toastNeed2Kf: 'Přidej alespoň 2 keyframy pro animaci.',
+          toastPngSaved: '4K PNG snímek uložen!',
+          toastSceneSaved: 'Scéna uložena!',
+          toastSvgLoaded: 'SVG logo vyryto do jádra!',
+          toastNoActions: 'Nejprve zaznamenej nějaké tahy a kliky.'
+        },
+        en: {
+          tabStyle: 'Style',
+          tabOptics: 'Optics',
+          tabScene: 'Scene',
+          tabExport: 'Export',
+          coreTextTitle: 'Etched Text / SVG',
+          uploadSvgBtn: '+ Upload SVG',
+          clearSvgBtn: 'Clear SVG (back to text)',
+          shapesTitle: 'Volume Shape (3D SDF)',
+          shapePill: 'Capsule',
+          shapeSphere: 'Sphere',
+          shapeCube: 'Cube',
+          shapeDisc: 'Disc',
+          shapeTorus: 'Torus',
+          shapeCrystal: 'Crystal',
+          colorsTitle: 'Colors & Palette',
+          lblTint: 'Glass Tint',
+          lblCoreColor: 'Core Glow',
+          lblBgColor: 'Backdrop',
+          lblLightColor: 'Key Light',
+          presetsTitle: 'Material Presets',
+          savedScenesTitle: 'Saved Scenes',
+          scenePlaceholder: 'Scene name...',
+          saveSceneBtn: 'Save',
+          importJsonBtn: 'Import JSON',
+          opticsTitle: 'Optical & Frost',
+          coreSettingsTitle: 'Core Settings',
+          lblIor: 'Refraction (IOR)',
+          lblDispersion: 'Chromatic Dispersion',
+          lblFrost: 'Surface Frost',
+          lblCoreFrost: 'Core Etch Frost',
+          lblIridescence: 'Iridescence',
+          lblCoreScale: 'Core Text Scale',
+          lblCoreDepth: 'Etch Depth',
+          lblCoreGlow: 'Core Etch Glow',
+          lightTitle: 'Key Light & Camera',
+          volumeTitle: 'Volume & Motion',
+          lblAzimuth: 'Light Azimuth',
+          lblElevation: 'Light Elevation',
+          lblIntensity: 'Light Intensity',
+          lblAbsorption: 'Absorption Density',
+          lblRoundness: 'Liquid Roundness',
+          lblRipples: 'Fluid Flow',
+          lblFlowSpeed: 'Flow Speed',
+          lblAutoSpin: 'Auto-Orbit Speed',
+          lblFov: 'Camera Zoom / FOV',
+          keyframesTitle: 'Scene Keyframes',
+          addKf: '+ Keyframe',
+          playKf: 'Play',
+          stopKf: 'Stop',
+          clearKf: 'Clear',
+          lblLoopMode: 'Loop Mode',
+          loopPingPong: 'Ping-Pong (Seamless)',
+          loopSmooth: 'Smooth Loop (End → Start)',
+          loopOnce: 'Play Once',
+          lblKfDuration: 'Segment Duration',
+          lblKfMorph: 'Morph Colors & Optics',
+          lblKfPulse: 'Ripple Pulse at Keyframes',
+          lblAutoWave: 'Periodic Auto-Waves',
+          actionReplayTitle: 'Action Replay Recorder',
+          recActionStart: 'Record Actions',
+          recActionStop: 'Stop Recording',
+          playAction: 'Play Actions',
+          stopAction: 'Stop',
+          exportAction: 'Export Action Replay (4K)',
+          exportTitle: 'Clean Export (No UI)',
+          lblRes: 'Resolution',
+          lblAspect: 'Aspect Ratio',
+          exportVideo: 'Export 4K Keyframe Video',
+          exportPng: 'Save 4K PNG Snapshot',
+          exportHint: 'Live recording and export capture only the clean WebGL2 canvas without Controls or HUD. Pinch with two fingers or scroll to zoom.',
+          recStart: 'Record',
+          recStop: 'Stop',
+          pulse: 'Pulse',
+          resetView: 'Reset View',
+          controls: 'Controls',
+          hideControls: 'Hide',
+          defaultCoreText: '<Your Text>',
+          toastRecStarted: 'Recording clean canvas (no UI)...',
+          toastRecSaved: 'Recording downloaded!',
+          toastExporting: 'Rendering clean keyframe video...',
+          toastExportDone: 'Video export complete!',
+          toastNeed2Kf: 'Add at least 2 keyframes to animate.',
+          toastPngSaved: '4K PNG snapshot saved!',
+          toastSceneSaved: 'Scene saved!',
+          toastSvgLoaded: 'SVG logo etched into core!',
+          toastNoActions: 'Record some drags or clicks first.'
+        }
+      };
+
+      let currentLang = 'cs';
+      let userEditedText = false;
+      let customSvgDataUrl = null;
+      let toastTimer = null;
+
+      function showToast(msg) {
+        const el = document.getElementById('toastBanner');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
+      }
+
+      // -----------------------------------------------------------------------
+      // 2. Dynamic 16-bit Float (RGBA16F) Euclidean SDF Texture (Text or SVG)
+      // -----------------------------------------------------------------------
+      const SDF_W = 512;
+      const SDF_H = 128;
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = SDF_W;
+      offCanvas.height = SDF_H;
+      const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+
+      const INF = 1e9;
+      const nPix = SDF_W * SDF_H;
+      const outside = new Float32Array(nPix);
+      const inside = new Float32Array(nPix);
+      const sdfArr = new Float32Array(nPix);
+      const halfBuf = new Uint16Array(nPix * 4);
+      const maxDim = Math.max(SDF_W, SDF_H);
+      const edtF = new Float32Array(maxDim);
+      const edtD = new Float32Array(maxDim);
+      const edtV = new Int32Array(maxDim);
+      const edtZ = new Float32Array(maxDim + 1);
+      const f32View = new Float32Array(1);
+      const u32View = new Uint32Array(f32View.buffer);
+
+      function floatToHalf(val) {
+        f32View[0] = val;
+        const x = u32View[0];
+        const sign = (x >> 16) & 0x8000;
+        let mant = x & 0x007fffff;
+        let exp = (x >> 23) & 0xff;
+        if (exp === 0xff) return sign | 0x7c00 | (mant ? 1 : 0);
+        if (exp === 0) return sign;
+        exp = exp - 127 + 15;
+        if (exp >= 0x1f) return sign | 0x7c00;
+        if (exp <= 0) {
+          if (exp < -10) return sign;
+          mant = (mant | 0x00800000) >> (1 - exp);
+          return sign | (mant >> 13);
+        }
+        return sign | (exp << 10) | (mant >> 13);
+      }
+
+      function edt1d(len) {
+        let k = 0;
+        edtV[0] = 0;
+        edtZ[0] = -INF;
+        edtZ[1] = INF;
+        for (let q = 1; q < len; q++) {
+          let s = ((edtF[q] + q * q) - (edtF[edtV[k]] + edtV[k] * edtV[k])) / (2 * q - 2 * edtV[k]);
+          while (s <= edtZ[k]) {
+            k--;
+            s = ((edtF[q] + q * q) - (edtF[edtV[k]] + edtV[k] * edtV[k])) / (2 * q - 2 * edtV[k]);
+          }
+          k++;
+          edtV[k] = q;
+          edtZ[k] = s;
+          edtZ[k + 1] = INF;
+        }
+        k = 0;
+        for (let q = 0; q < len; q++) {
+          while (edtZ[k + 1] < q) k++;
+          const dx = q - edtV[k];
+          edtD[q] = dx * dx + edtF[edtV[k]];
+        }
+      }
+
+      function edt2d(grid) {
+        for (let x = 0; x < SDF_W; x++) {
+          for (let y = 0; y < SDF_H; y++) edtF[y] = grid[y * SDF_W + x];
+          edt1d(SDF_H);
+          for (let y = 0; y < SDF_H; y++) grid[y * SDF_W + x] = edtD[y];
+        }
+        for (let y = 0; y < SDF_H; y++) {
+          const row = y * SDF_W;
+          for (let x = 0; x < SDF_W; x++) edtF[x] = grid[row + x];
+          edt1d(SDF_W);
+          for (let x = 0; x < SDF_W; x++) grid[row + x] = edtD[x];
+        }
+      }
+
+      const sdfTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, sdfTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      function uploadOffscreenCanvasToSDF(useAlphaMask) {
+        const img = offCtx.getImageData(0, 0, SDF_W, SDF_H).data;
+        for (let i = 0; i < nPix; i++) {
+          const val = useAlphaMask ? img[i * 4 + 3] / 255.0 : img[i * 4] / 255.0;
+          if (val > 0.45) {
+            outside[i] = 0.0;
+            inside[i] = INF;
+          } else {
+            outside[i] = INF;
+            inside[i] = 0.0;
+          }
+        }
+        edt2d(outside);
+        edt2d(inside);
+
+        const scale = 1.0 / SDF_H;
+        for (let i = 0; i < nPix; i++) {
+          sdfArr[i] = (Math.sqrt(outside[i]) - Math.sqrt(inside[i])) * scale;
+        }
+
+        for (let y = 0; y < SDF_H; y++) {
+          const srcY = SDF_H - 1 - y;
+          for (let x = 0; x < SDF_W; x++) {
+            const idx = srcY * SDF_W + x;
+            const xm = srcY * SDF_W + Math.max(0, x - 1);
+            const xp = srcY * SDF_W + Math.min(SDF_W - 1, x + 1);
+            const ym = Math.max(0, srcY - 1) * SDF_W + x;
+            const yp = Math.min(SDF_H - 1, srcY + 1) * SDF_W + x;
+
+            const sdVal = sdfArr[idx];
+            let gx = (sdfArr[xp] - sdfArr[xm]) * 0.5;
+            let gy = (sdfArr[ym] - sdfArr[yp]) * 0.5;
+            const glen = Math.hypot(gx, gy) + 1e-6;
+            gx /= glen;
+            gy /= glen;
+
+            const dst = (y * SDF_W + x) * 4;
+            halfBuf[dst] = floatToHalf(sdVal);
+            halfBuf[dst + 1] = floatToHalf(gx);
+            halfBuf[dst + 2] = floatToHalf(gy);
+            halfBuf[dst + 3] = floatToHalf(1.0);
+          }
+        }
+
+        gl.bindTexture(gl.TEXTURE_2D, sdfTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, SDF_W, SDF_H, 0, gl.RGBA, gl.HALF_FLOAT, halfBuf);
+      }
+
+      function updateTextSDF(text, fontFamily) {
+        if (customSvgDataUrl) return;
+        const label = (text || ' ').trim() || ' ';
+        const font = fontFamily || state.fontFamily;
+        offCtx.fillStyle = '#000000';
+        offCtx.fillRect(0, 0, SDF_W, SDF_H);
+        offCtx.fillStyle = '#ffffff';
+        offCtx.textAlign = 'center';
+        offCtx.textBaseline = 'middle';
+
+        let fontSize = 84;
+        offCtx.font = `700 ${fontSize}px ${font}`;
+        const measured = offCtx.measureText(label).width;
+        if (measured > SDF_W * 0.86) {
+          fontSize = Math.max(22, Math.floor(fontSize * ((SDF_W * 0.86) / measured)));
+          offCtx.font = `700 ${fontSize}px ${font}`;
+        }
+        offCtx.fillText(label, SDF_W * 0.5, SDF_H * 0.52);
+        uploadOffscreenCanvasToSDF(false);
+      }
+
+      function loadSvgToSDF(dataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          offCtx.clearRect(0, 0, SDF_W, SDF_H);
+          const pad = 14;
+          const availW = SDF_W - pad * 2;
+          const availH = SDF_H - pad * 2;
+          const ratio = Math.min(availW / (img.width || 100), availH / (img.height || 100));
+          const dw = (img.width || 100) * ratio;
+          const dh = (img.height || 100) * ratio;
+          offCtx.drawImage(img, (SDF_W - dw) * 0.5, (SDF_H - dh) * 0.5, dw, dh);
+          uploadOffscreenCanvasToSDF(true);
+          document.getElementById('clearSvgBtn').classList.remove('hidden');
+          showToast(i18n[currentLang].toastSvgLoaded);
+        };
+        img.src = dataUrl;
+      }
+
+      // -----------------------------------------------------------------------
+      // 3. WebGL2 Liquid Glass Raymarched SDF Shaders (6 3D Shapes)
+      // -----------------------------------------------------------------------
+      const vsSource = `#version 300 es
+        in vec2 aPos;
+        out vec2 vUv;
+        void main() {
+          vUv = aPos * 0.5 + 0.5;
+          gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+      `;
+
+      const fsSource = `#version 300 es
+        precision highp float;
+        precision highp sampler2D;
+
+        in vec2 vUv;
+        out vec4 fragColor;
+
+        uniform vec2 uResolution;
+        uniform float uTime;
+        uniform vec3 uCamPos;
+        uniform vec3 uCamTarget;
+        uniform float uFov;
+        uniform sampler2D uSdfTex;
+        uniform int uShape;
+
+        uniform float uIor;
+        uniform float uDispersion;
+        uniform float uFrost;
+        uniform float uCoreFrost;
+        uniform float uIridescence;
+        uniform float uCoreScale;
+        uniform float uCoreDepth;
+
+        uniform vec3 uLightDir;
+        uniform vec3 uLightColor;
+        uniform float uLightIntensity;
+
+        uniform vec3 uTintColor;
+        uniform vec3 uCoreColor;
+        uniform vec3 uBgColor;
+        uniform float uAbsorption;
+        uniform float uRoundness;
+        uniform float uRipples;
+        uniform float uFlowSpeed;
+        uniform float uCoreGlow;
+
+        uniform vec4 uTouchPoints[4];
+
+        float hash12(vec2 p) {
+          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+          p3 += dot(p3, p3.yzx + 33.33);
+          return fract((p3.x + p3.y) * p3.z);
+        }
+
+        vec3 hash33(vec3 p3) {
+          p3 = fract(p3 * vec3(0.1031, 0.1030, 0.0973));
+          p3 += dot(p3, p3.yxz + 33.33);
+          return fract((p3.xxy + p3.yxx) * p3.zyx) - 0.5;
+        }
+
+        float smin(float a, float b, float k) {
+          float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+          return mix(b, a, h) - k * h * (1.0 - h);
+        }
+
+        float sdRoundBox(vec3 p, vec3 b, float r) {
+          vec3 q = abs(p) - b + r;
+          return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
+        }
+
+        float sdCylinder(vec3 p, float h, float r) {
+          vec2 d = abs(vec2(length(p.xy), p.z)) - vec2(r, h);
+          return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+        }
+
+        float sdTorus(vec3 p, vec2 t) {
+          vec2 q = vec2(length(p.xy) - t.x, p.z);
+          return length(q) - t.y;
+        }
+
+        float sdOctahedron(vec3 p, float s) {
+          p = abs(p);
+          return (p.x + p.y + p.z - s) * 0.57735027;
+        }
+
+        vec2 evalTouchWaves(vec3 p) {
+          float disp = 0.0;
+          float energy = 0.0;
+          for (int i = 0; i < 4; i++) {
+            float age = uTouchPoints[i].w;
+            if (age >= 0.0 && age < 3.2) {
+              float dist = length(p - uTouchPoints[i].xyz);
+              float radius = age * 1.45;
+              float ring = exp(-pow((dist - radius) * 3.6, 2.0));
+              float damp = exp(-age * 1.35) * exp(-dist * 0.45);
+              float wave = sin((dist - radius) * 14.0) * ring * damp;
+              disp += wave * 0.065;
+              energy += ring * damp;
+            }
+          }
+          return vec2(disp, energy);
+        }
+
+        float mapOuter(vec3 p) {
+          float dMain = 0.0;
+          if (uShape == 0) {
+            float r = mix(0.08, 0.48, uRoundness);
+            dMain = sdRoundBox(p, vec3(1.58, 0.64, 0.46), r);
+          } else if (uShape == 1) {
+            dMain = length(p) - 1.05;
+          } else if (uShape == 2) {
+            float r = mix(0.06, 0.45, uRoundness);
+            dMain = sdRoundBox(p, vec3(0.95, 0.95, 0.65), r);
+          } else if (uShape == 3) {
+            dMain = sdCylinder(p, 0.34, 1.15) - mix(0.02, 0.14, uRoundness);
+          } else if (uShape == 4) {
+            dMain = sdTorus(p, vec2(0.92, mix(0.28, 0.42, uRoundness)));
+          } else {
+            vec3 sp = vec3(p.x * 0.85, p.y * 1.05, p.z * 1.15);
+            dMain = sdOctahedron(sp, 1.45) - mix(0.03, 0.18, uRoundness);
+          }
+
+          if (uRipples > 0.001) {
+            float t = uTime * 1.15 * uFlowSpeed;
+            vec3 lobe1 = vec3(sin(t * 0.7) * 0.72, cos(t * 0.9) * 0.14, 0.05 * sin(t));
+            vec3 lobe2 = vec3(cos(t * 0.55) * -0.68, sin(t * 0.8) * 0.16, -0.05 * cos(t));
+            float dLobe1 = length(p - lobe1) - (0.30 + 0.08 * uRoundness);
+            float dLobe2 = length(p - lobe2) - (0.28 + 0.08 * uRoundness);
+            dMain = smin(dMain, dLobe1, 0.32 * uRipples);
+            dMain = smin(dMain, dLobe2, 0.32 * uRipples);
+
+            float w = sin(p.x * 3.6 + t * 1.3) * cos(p.y * 4.4 - t * 0.95) * 0.5
+                    + sin(p.z * 5.2 + p.x * 2.1 - t * 1.2) * 0.5;
+            dMain += w * 0.024 * uRipples;
+          }
+
+          dMain += evalTouchWaves(p).x;
+          return dMain;
+        }
+
+        float mapCore(vec3 p) {
+          float shapeScale = (uShape == 0) ? 1.0 : ((uShape == 4) ? 0.55 : 0.72);
+          vec2 halfExt = vec2(1.18, 0.295) * (uCoreScale * shapeScale);
+          vec2 uv = (p.xy / halfExt) * 0.5 + 0.5;
+          vec2 clampedUv = clamp(uv, 0.0, 1.0);
+          float sd2d = texture(uSdfTex, clampedUv).r * (0.59 * uCoreScale * shapeScale);
+
+          vec2 outsideDist = abs(p.xy) - halfExt;
+          if (outsideDist.x > 0.0 || outsideDist.y > 0.0) {
+            sd2d = max(sd2d, length(max(outsideDist, 0.0)));
+          }
+
+          vec2 w = vec2(sd2d, abs(p.z) - uCoreDepth);
+          return min(max(w.x, w.y), 0.0) + length(max(w, 0.0)) - 0.009;
+        }
+
+        vec3 calcNormalOuter(vec3 p) {
+          const float h = 0.0016;
+          const vec2 k = vec2(1.0, -1.0);
+          return normalize(
+            k.xyy * mapOuter(p + k.xyy * h) +
+            k.yyx * mapOuter(p + k.yyx * h) +
+            k.yxy * mapOuter(p + k.yxy * h) +
+            k.xxx * mapOuter(p + k.xxx * h)
+          );
+        }
+
+        vec3 calcNormalCore(vec3 p) {
+          const float h = 0.002;
+          const vec2 k = vec2(1.0, -1.0);
+          return normalize(
+            k.xyy * mapCore(p + k.xyy * h) +
+            k.yyx * mapCore(p + k.yyx * h) +
+            k.yxy * mapCore(p + k.yxy * h) +
+            k.xxx * mapCore(p + k.xxx * h)
+          );
+        }
+
+        vec3 sampleEnv(vec3 rd, float roughness) {
+          float up = clamp(rd.y * 0.5 + 0.5, 0.0, 1.0);
+          vec3 deepBg = uBgColor * 0.28;
+          vec3 highBg = uBgColor * 1.15 + vec3(0.03, 0.05, 0.10);
+          vec3 col = mix(deepBg, highBg, pow(up, 1.35));
+
+          float strip = smoothstep(0.62, 0.96, rd.y) * smoothstep(0.55, 0.0, abs(rd.x));
+          col += mix(vec3(0.85, 0.94, 1.0), uLightColor, 0.5) * strip * (1.3 - roughness * 0.9);
+
+          float horizon = exp(-abs(rd.y) * 6.0);
+          col += mix(uBgColor, uTintColor, 0.45) * horizon * 0.55;
+
+          float kd = max(dot(rd, uLightDir), 0.0);
+          float specPow = mix(110.0, 6.0, roughness);
+          col += uLightColor * uLightIntensity * pow(kd, specPow) * 1.65;
+          col += uLightColor * uLightIntensity * pow(kd, 7.0) * 0.28;
+
+          vec3 rimDir = normalize(vec3(-uLightDir.x, 0.42, -uLightDir.z));
+          float rdDot = max(dot(rd, rimDir), 0.0);
+          col += mix(uTintColor, uCoreColor, 0.5) * pow(rdDot, mix(26.0, 4.0, roughness)) * 0.95;
+
+          if (rd.y < -0.05) {
+            float tFloor = -1.25 / rd.y;
+            if (tFloor < 18.0) {
+              vec2 fp = rd.xz * tFloor;
+              float distCenter = length(fp);
+              float caustic = exp(-distCenter * 0.52) * 0.42;
+              col += mix(uTintColor, uCoreColor, 0.35) * caustic * uLightIntensity * 0.5;
+            }
+          }
+          return col;
+        }
+
+        vec3 traceChannel(vec3 enterPos, vec3 rdIn, float ior, vec3 noiseVec, float touchEnergy) {
+          vec3 dir = normalize(rdIn + noiseVec * (uFrost * 0.14));
+          float t = 0.02;
+          bool hitCore = false;
+          vec3 coreHitPos = enterPos;
+          float minCoreDist = 10.0;
+
+          for (int i = 0; i < 40; i++) {
+            vec3 p = enterPos + dir * t;
+            float dOut = mapOuter(p);
+            float dCore = mapCore(p);
+            minCoreDist = min(minCoreDist, dCore);
+
+            if (dCore < 0.0025) {
+              hitCore = true;
+              coreHitPos = p;
+              break;
+            }
+            if (dOut > 0.002 && t > 0.03) {
+              break;
+            }
+            float stepDist = min(max(dCore, 0.002), max(-dOut, 0.004));
+            t += stepDist * 0.85;
+            if (t > 4.2) break;
+          }
+
+          vec3 absorbCoeff = (vec3(1.0) - uTintColor) * uAbsorption * 1.55 + vec3(0.025);
+          vec3 transmittance = exp(-absorbCoeff * t);
+          float pulseBoost = 1.0 + touchEnergy * 1.35;
+
+          if (hitCore) {
+            vec3 nCore = calcNormalCore(coreHitPos);
+            vec3 frostedN = normalize(nCore + noiseVec * (uCoreFrost * 0.35));
+            float ndl = max(dot(frostedN, uLightDir), 0.0);
+            float fresCore = pow(1.0 - max(dot(-dir, frostedN), 0.0), 2.4);
+
+            vec3 reflDir = reflect(dir, frostedN);
+            vec3 coreEnv = sampleEnv(reflDir, mix(0.20, 0.82, uCoreFrost));
+            vec3 etchedColor = mix(uCoreColor * 0.9, uLightColor, 0.35);
+            vec3 coreLight = etchedColor * (0.30 + 0.95 * ndl * uLightIntensity)
+                           + coreEnv * (0.38 + 0.48 * fresCore)
+                           + uCoreColor * (uCoreGlow * 0.65 * pulseBoost);
+
+            return coreLight * transmittance;
+          }
+
+          vec3 exitPos = enterPos + dir * t;
+          vec3 nExit = -calcNormalOuter(exitPos);
+          vec3 rdOut = refract(dir, nExit, ior);
+          if (length(rdOut) < 0.001) {
+            rdOut = reflect(dir, nExit);
+          }
+
+          float coreHalo = exp(-max(minCoreDist, 0.0) * 16.0) * uCoreGlow * 0.55 * pulseBoost;
+          vec3 bg = sampleEnv(normalize(rdOut), uFrost * 0.6);
+          return (bg + uCoreColor * coreHalo) * transmittance;
+        }
+
+        void main() {
+          vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution) / min(uResolution.x, uResolution.y);
+
+          vec3 ro = uCamPos;
+          vec3 fw = normalize(uCamTarget - ro);
+          vec3 rt = normalize(cross(fw, vec3(0.0, 1.0, 0.0)));
+          vec3 up = cross(rt, fw);
+          vec3 rd = normalize(fw * uFov + rt * uv.x + up * uv.y);
+
+          // Bounding sphere early-out (radius 2.15) skips background rays instantly
+          float bProj = dot(-ro, rd);
+          float bDistSq = dot(ro, ro) - bProj * bProj;
+          float t = max(0.0, bProj - 2.15);
+          bool hit = false;
+          if (bDistSq < 4.65) {
+            for (int i = 0; i < 52; i++) {
+              vec3 p = ro + rd * t;
+              float d = mapOuter(p);
+              if (d < 0.0018) {
+                hit = true;
+                break;
+              }
+              t += d * 0.92;
+              if (t > bProj + 2.15) break;
+            }
+          }
+
+          vec3 col = sampleEnv(rd, 0.14);
+
+          if (hit) {
+            vec3 p = ro + rd * t;
+            vec3 n = calcNormalOuter(p);
+            float touchEnergy = evalTouchWaves(p).y;
+
+            vec3 noiseVec = hash33(p * 85.0 + vec3(hash12(gl_FragCoord.xy) * 10.0));
+            vec3 nSurf = normalize(n + noiseVec * (uFrost * 0.12));
+
+            float r0 = (1.0 - uIor) / (1.0 + uIor);
+            r0 = r0 * r0;
+            float cosTheta = max(dot(-rd, nSurf), 0.0);
+            float fresnel = r0 + (1.0 - r0) * pow(1.0 - cosTheta, 4.2);
+
+            vec3 reflDir = reflect(rd, nSurf);
+            vec3 reflCol = sampleEnv(reflDir, uFrost * 0.65);
+
+            float dynDisp = uDispersion + touchEnergy * 0.055;
+            float iorR = max(1.01, uIor - dynDisp);
+            float iorG = uIor;
+            float iorB = uIor + dynDisp;
+
+            vec3 rdR = refract(rd, nSurf, 1.0 / iorR);
+            vec3 rdG = refract(rd, nSurf, 1.0 / iorG);
+            vec3 rdB = refract(rd, nSurf, 1.0 / iorB);
+
+            float rCh = traceChannel(p, rdR, iorR, noiseVec, touchEnergy).r;
+            float gCh = traceChannel(p, rdG, iorG, noiseVec, touchEnergy).g;
+            float bCh = traceChannel(p, rdB, iorB, noiseVec, touchEnergy).b;
+            vec3 refrCol = vec3(rCh, gCh, bCh);
+
+            vec3 halfVec = normalize(uLightDir - rd);
+            float spec = pow(max(dot(nSurf, halfVec), 0.0), mix(220.0, 20.0, uFrost));
+            vec3 specCol = uLightColor * uLightIntensity * spec * 1.15;
+
+            vec3 irid = 0.5 + 0.5 * cos(6.2831 * (cosTheta * 0.9 + vec3(0.0, 0.33, 0.67)));
+            vec3 rimGlow = mix(uTintColor, irid, uIridescence) * pow(1.0 - cosTheta, 3.5) * (0.45 + touchEnergy * 0.95);
+
+            col = mix(refrCol, reflCol, clamp(fresnel * 1.22, 0.0, 0.94)) + specCol + rimGlow;
+          }
+
+          col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
+          col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));
+          fragColor = vec4(col, 1.0);
+        }
+      `;
+
+      function compileShader(type, src) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(s) || 'Shader compilation failed');
+        }
+        return s;
+      }
+
+      let program;
+      try {
+        const vs = compileShader(gl.VERTEX_SHADER, vsSource);
+        const fs = compileShader(gl.FRAGMENT_SHADER, fsSource);
+        program = gl.createProgram();
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          throw new Error(gl.getProgramInfoLog(program) || 'Program link failed');
+        }
+      } catch (e) {
+        showError(e.message);
+        return;
+      }
+
+      const quadBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      const aPos = gl.getAttribLocation(program, 'aPos');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+      const uLoc = {};
+      [
+        'uResolution', 'uTime', 'uCamPos', 'uCamTarget', 'uFov', 'uSdfTex', 'uShape',
+        'uIor', 'uDispersion', 'uFrost', 'uCoreFrost', 'uIridescence', 'uCoreScale', 'uCoreDepth',
+        'uLightDir', 'uLightColor', 'uLightIntensity',
+        'uTintColor', 'uCoreColor', 'uBgColor',
+        'uAbsorption', 'uRoundness', 'uRipples', 'uFlowSpeed', 'uCoreGlow',
+        'uTouchPoints[0]', 'uTouchPoints[1]', 'uTouchPoints[2]', 'uTouchPoints[3]'
+      ].forEach((name) => {
+        uLoc[name] = gl.getUniformLocation(program, name);
+      });
+
+      // -----------------------------------------------------------------------
+      // 4. State, Presets, Themes, Saved Scenes & UI Sync
+      // -----------------------------------------------------------------------
+      const presets = {
+        liquid:  { ior: 1.38, dispersion: 0.055, frost: 0.04, coreFrost: 0.62, absorption: 0.36, roundness: 0.68, ripples: 0.55, coreGlow: 0.70 },
+        water:   { ior: 1.33, dispersion: 0.035, frost: 0.06, coreFrost: 0.65, absorption: 0.45, roundness: 0.48, ripples: 0.40, coreGlow: 0.55 },
+        crown:   { ior: 1.52, dispersion: 0.048, frost: 0.02, coreFrost: 0.80, absorption: 0.16, roundness: 0.22, ripples: 0.05, coreGlow: 0.48 },
+        frost:   { ior: 1.46, dispersion: 0.025, frost: 0.56, coreFrost: 0.90, absorption: 0.30, roundness: 0.42, ripples: 0.12, coreGlow: 0.75 },
+        abyss:   { ior: 1.36, dispersion: 0.035, frost: 0.10, coreFrost: 0.55, absorption: 1.60, roundness: 0.74, ripples: 0.70, coreGlow: 0.95 },
+        diamond: { ior: 2.18, dispersion: 0.130, frost: 0.01, coreFrost: 0.70, absorption: 0.08, roundness: 0.12, ripples: 0.00, coreGlow: 0.65 }
+      };
+
+      const colorThemes = {
+        glacial:  { tintColor: '#38bdf8', coreColor: '#a5f3fc', bgColor: '#0c1b3a', lightColor: '#e0f2fe' },
+        aurora:   { tintColor: '#c084fc', coreColor: '#f5d0fe', bgColor: '#1e103c', lightColor: '#fae8ff' },
+        emerald:  { tintColor: '#34d399', coreColor: '#a7f3d0', bgColor: '#062822', lightColor: '#ecfdf5' },
+        amber:    { tintColor: '#fb923c', coreColor: '#fde68a', bgColor: '#2d1215', lightColor: '#fff7ed' },
+        rose:     { tintColor: '#f472b6', coreColor: '#fbcfe8', bgColor: '#2a0f29', lightColor: '#fdf2f8' },
+        obsidian: { tintColor: '#e2e8f0', coreColor: '#ffffff', bgColor: '#0f172a', lightColor: '#f8fafc' }
+      };
+
+      const state = {
+        activePreset: 'liquid',
+        shape: 0,
+        fontFamily: 'Inter, system-ui, sans-serif',
+        ior: 1.38,
+        dispersion: 0.055,
+        frost: 0.04,
+        coreFrost: 0.62,
+        iridescence: 0.45,
+        coreScale: 1.00,
+        coreDepth: 0.08,
+        coreGlow: 0.70,
+        lightAzimuth: 38,
+        lightElevation: 42,
+        lightIntensity: 1.75,
+        lightColor: '#e0f2fe',
+        tintColor: '#38bdf8',
+        coreColor: '#a5f3fc',
+        bgColor: '#0c1b3a',
+        absorption: 0.36,
+        roundness: 0.68,
+        ripples: 0.55,
+        flowSpeed: 1.00,
+        autoSpin: 0.00,
+        fov: 1.85,
+        camTheta: 0.20,
+        camPhi: 0.16,
+        camDist: 4.05,
+        kfDuration: 2.5
+      };
+
+      function hexToRgb(hex) {
+        const v = parseInt(hex.slice(1), 16);
+        return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
+      }
+
+      function lerpHex(hexA, hexB, t) {
+        const a = hexToRgb(hexA);
+        const b = hexToRgb(hexB);
+        const r = Math.round((a[0] + (b[0] - a[0]) * t) * 255);
+        const g = Math.round((a[1] + (b[1] - a[1]) * t) * 255);
+        const bl = Math.round((a[2] + (b[2] - a[2]) * t) * 255);
+        return '#' + ((1 << 24) + (r << 16) + (g << 8) + bl).toString(16).slice(1);
+      }
+
+      const sliderDefs = [
+        { id: 'ior', dec: 2, suffix: '' },
+        { id: 'dispersion', dec: 3, suffix: '' },
+        { id: 'frost', dec: 2, suffix: '' },
+        { id: 'coreFrost', dec: 2, suffix: '' },
+        { id: 'iridescence', dec: 2, suffix: '' },
+        { id: 'coreScale', dec: 2, suffix: '' },
+        { id: 'coreDepth', dec: 3, suffix: '' },
+        { id: 'coreGlow', dec: 2, suffix: '' },
+        { id: 'lightAzimuth', dec: 0, suffix: '°' },
+        { id: 'lightElevation', dec: 0, suffix: '°' },
+        { id: 'lightIntensity', dec: 2, suffix: '' },
+        { id: 'absorption', dec: 2, suffix: '' },
+        { id: 'roundness', dec: 2, suffix: '' },
+        { id: 'ripples', dec: 2, suffix: '' },
+        { id: 'flowSpeed', dec: 2, suffix: '' },
+        { id: 'autoSpin', dec: 2, suffix: '' },
+        { id: 'fov', dec: 2, suffix: '' },
+        { id: 'kfDuration', dec: 2, suffix: 's' }
+      ];
+
+      function syncUI() {
+        sliderDefs.forEach(({ id, dec, suffix }) => {
+          const sl = document.getElementById('sl-' + id);
+          const valEl = document.getElementById('val-' + id);
+          if (sl) sl.value = state[id];
+          if (valEl) valEl.textContent = Number(state[id]).toFixed(dec) + suffix;
+        });
+        document.getElementById('lightColor').value = state.lightColor;
+        document.getElementById('tintColor').value = state.tintColor;
+        document.getElementById('coreColor').value = state.coreColor;
+        document.getElementById('bgColor').value = state.bgColor;
+        document.getElementById('fontSelect').value = state.fontFamily;
+
+        document.querySelectorAll('.preset-btn').forEach((btn) => {
+          const active = btn.dataset.preset === state.activePreset;
+          const spanClass = btn.dataset.preset === 'diamond' ? ' col-span-2' : '';
+          btn.className = active
+            ? 'preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition bg-sky-500/20 border-sky-400/50 text-sky-200' + spanClass
+            : 'preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-left border transition bg-white/5 hover:bg-white/10 border-white/10 text-slate-300' + spanClass;
+        });
+
+        document.querySelectorAll('.shape-btn').forEach((btn) => {
+          const active = parseInt(btn.dataset.shape, 10) === state.shape;
+          btn.className = active
+            ? 'shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition bg-sky-500/20 border-sky-400/50 text-sky-200'
+            : 'shape-btn px-2 py-1.5 rounded-lg text-[11px] font-medium border transition bg-slate-900/60 hover:bg-white/10 border-white/10 text-slate-300';
+        });
+      }
+
+      sliderDefs.forEach(({ id }) => {
+        const sl = document.getElementById('sl-' + id);
+        if (!sl) return;
+        sl.addEventListener('input', (e) => {
+          state[id] = parseFloat(e.target.value);
+          if (presets.liquid[id] !== undefined) state.activePreset = '';
+          syncUI();
+        });
+      });
+
+      ['lightColor', 'tintColor', 'coreColor', 'bgColor'].forEach((id) => {
+        document.getElementById(id).addEventListener('input', (e) => {
+          state[id] = e.target.value;
+        });
+      });
+
+      document.querySelectorAll('.swatch-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const theme = colorThemes[btn.dataset.theme];
+          if (!theme) return;
+          Object.assign(state, theme);
+          syncUI();
+        });
+      });
+
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const p = presets[btn.dataset.preset];
+          if (!p) return;
+          Object.assign(state, p, { activePreset: btn.dataset.preset });
+          syncUI();
+        });
+      });
+
+      document.querySelectorAll('.shape-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.shape = parseInt(btn.dataset.shape, 10);
+          syncUI();
+        });
+      });
+
+      const coreTextInput = document.getElementById('coreTextInput');
+      coreTextInput.addEventListener('input', (e) => {
+        userEditedText = true;
+        customSvgDataUrl = null;
+        document.getElementById('clearSvgBtn').classList.add('hidden');
+        updateTextSDF(e.target.value, state.fontFamily);
+      });
+
+      document.getElementById('fontSelect').addEventListener('change', (e) => {
+        state.fontFamily = e.target.value;
+        customSvgDataUrl = null;
+        document.getElementById('clearSvgBtn').classList.add('hidden');
+        updateTextSDF(coreTextInput.value, state.fontFamily);
+      });
+
+      document.getElementById('svgUploadInput').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          customSvgDataUrl = ev.target.result;
+          loadSvgToSDF(customSvgDataUrl);
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      });
+
+      document.getElementById('clearSvgBtn').addEventListener('click', () => {
+        customSvgDataUrl = null;
+        document.getElementById('clearSvgBtn').classList.add('hidden');
+        updateTextSDF(coreTextInput.value, state.fontFamily);
+      });
+
+      // -----------------------------------------------------------------------
+      // Saved Scenes (LocalStorage + JSON Export/Import)
+      // -----------------------------------------------------------------------
+      const STORAGE_KEY = 'liquid_glass_saved_scenes_v1';
+      let savedScenes = [];
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) savedScenes = JSON.parse(raw);
+      } catch (e) {}
+
+      function persistScenes() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedScenes));
+        } catch (e) {}
+      }
+
+      function renderSavedScenes() {
+        const box = document.getElementById('savedScenesList');
+        box.innerHTML = '';
+        savedScenes.forEach((sc, idx) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/10 text-[11px]';
+          row.innerHTML = `<button data-load-sc="${idx}" class="text-left text-slate-200 hover:text-sky-300 flex-1 truncate font-medium"></button>
+            <button data-del-sc="${idx}" class="ml-2 text-slate-400 hover:text-rose-400 font-bold px-1">×</button>`;
+          row.querySelector('[data-load-sc]').textContent = sc.name;
+          box.appendChild(row);
+        });
+        box.querySelectorAll('[data-load-sc]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const sc = savedScenes[parseInt(btn.dataset.loadSc, 10)];
+            if (!sc) return;
+            applySceneBundle(sc);
+          });
+        });
+        box.querySelectorAll('[data-del-sc]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            savedScenes.splice(parseInt(btn.dataset.delSc, 10), 1);
+            persistScenes();
+            renderSavedScenes();
+          });
+        });
+      }
+
+      function createSceneBundle(name) {
+        return {
+          name: name || ('Scene ' + (savedScenes.length + 1)),
+          state: Object.assign({}, state),
+          coreText: coreTextInput.value,
+          keyframes: keyframes.map((k) => Object.assign({}, k))
+        };
+      }
+
+      function applySceneBundle(bundle) {
+        if (bundle.state) Object.assign(state, bundle.state);
+        if (typeof bundle.coreText === 'string') {
+          coreTextInput.value = bundle.coreText;
+          userEditedText = true;
+          customSvgDataUrl = null;
+          document.getElementById('clearSvgBtn').classList.add('hidden');
+          updateTextSDF(bundle.coreText, state.fontFamily);
+        }
+        if (Array.isArray(bundle.keyframes)) {
+          keyframes.length = 0;
+          bundle.keyframes.forEach((k) => keyframes.push(Object.assign({}, k)));
+          renderKeyframes();
+        }
+        syncUI();
+      }
+
+      document.getElementById('saveSceneBtn').addEventListener('click', () => {
+        const inp = document.getElementById('sceneNameInput');
+        const name = inp.value.trim() || ('Scene ' + (savedScenes.length + 1));
+        savedScenes.unshift(createSceneBundle(name));
+        inp.value = '';
+        persistScenes();
+        renderSavedScenes();
+        showToast(i18n[currentLang].toastSceneSaved);
+      });
+
+      document.getElementById('exportJsonBtn').addEventListener('click', () => {
+        const bundle = createSceneBundle(coreTextInput.value || 'liquid_glass_scene');
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        triggerDownload(blob, 'liquid_glass_scene.json');
+      });
+
+      document.getElementById('importJsonInput').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            applySceneBundle(parsed);
+            showToast(i18n[currentLang].toastSceneSaved);
+          } catch (err) {}
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      renderSavedScenes();
+
+      // Tabs
+      function setTab(tab) {
+        document.querySelectorAll('.tab-pane').forEach((p) => {
+          p.classList.toggle('hidden', p.id !== 'tab-' + tab);
+        });
+        document.querySelectorAll('.tab-btn').forEach((b) => {
+          const on = b.dataset.tab === tab;
+          b.className = on
+            ? 'tab-btn py-1.5 rounded-lg text-[11px] font-semibold transition bg-sky-500/20 text-sky-200 border border-sky-400/40'
+            : 'tab-btn py-1.5 rounded-lg text-[11px] font-semibold transition text-slate-400 hover:text-slate-200 border border-transparent';
+        });
+      }
+      document.querySelectorAll('.tab-btn').forEach((b) => {
+        b.addEventListener('click', () => setTab(b.dataset.tab));
+      });
+      setTab('style');
+
+      // Panel Toggle
+      const panel = document.getElementById('controlPanel');
+      const toggleBtn = document.getElementById('togglePanelBtn');
+      let panelOpen = window.innerWidth >= 640;
+      function updatePanelVisibility() {
+        panel.classList.toggle('opacity-0', !panelOpen);
+        panel.classList.toggle('pointer-events-none', !panelOpen);
+        panel.classList.toggle('translate-y-4', !panelOpen && window.innerWidth < 640);
+        panel.classList.toggle('sm:translate-x-4', !panelOpen);
+        const dict = i18n[currentLang];
+        document.getElementById('toggleLabel').textContent = panelOpen ? dict.hideControls : dict.controls;
+      }
+      toggleBtn.addEventListener('click', () => {
+        panelOpen = !panelOpen;
+        updatePanelVisibility();
+      });
+
+      document.getElementById('resetCamBtn').addEventListener('click', () => {
+        kfPlaying = false;
+        actionPlaying = false;
+        state.camTheta = 0.20;
+        state.camPhi = 0.16;
+        state.camDist = 4.05;
+        applyLanguage(currentLang);
+      });
+
+      function applyLanguage(lang) {
+        currentLang = lang;
+        const d = i18n[lang];
+        document.getElementById('langBtn').textContent = lang.toUpperCase();
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+          const key = el.getAttribute('data-i18n');
+          if (d[key]) el.textContent = d[key];
+        });
+        document.querySelector('[data-tab="style"]').textContent = d.tabStyle;
+        document.querySelector('[data-tab="optics"]').textContent = d.tabOptics;
+        document.querySelector('[data-tab="scene"]').textContent = d.tabScene;
+        document.querySelector('[data-tab="export"]').textContent = d.tabExport;
+        document.getElementById('addKfBtn').textContent = d.addKf;
+        document.getElementById('clearKfBtn').textContent = d.clearKf;
+        document.getElementById('clearSvgBtn').textContent = d.clearSvgBtn;
+        document.getElementById('sceneNameInput').placeholder = d.scenePlaceholder;
+        document.getElementById('saveSceneBtn').textContent = d.saveSceneBtn;
+        document.getElementById('exportKfVideoBtn').textContent = d.exportVideo;
+        document.getElementById('exportPngBtn').textContent = d.exportPng;
+        document.getElementById('exportHint').textContent = d.exportHint;
+        document.getElementById('pulseBtn').textContent = d.pulse;
+        document.getElementById('resetCamBtn').textContent = d.resetView;
+        document.getElementById('recordLabel').textContent = isRecording ? d.recStop : d.recStart;
+        document.getElementById('playKfBtn').textContent = kfPlaying ? d.stopKf : d.playKf;
+        document.getElementById('recActionBtn').textContent = actionRecording ? d.recActionStop : d.recActionStart;
+        document.getElementById('playActionBtn').textContent = actionPlaying ? d.stopAction : d.playAction;
+        document.getElementById('exportActionVideoBtn').textContent = d.exportAction;
+
+        const loopSel = document.getElementById('kfLoopMode');
+        loopSel.options[0].text = d.loopPingPong;
+        loopSel.options[1].text = d.loopSmooth;
+        loopSel.options[2].text = d.loopOnce;
+
+        if (!userEditedText && !customSvgDataUrl) {
+          coreTextInput.value = d.defaultCoreText;
+          updateTextSDF(d.defaultCoreText, state.fontFamily);
+        }
+        updatePanelVisibility();
+      }
+
+      document.getElementById('langBtn').addEventListener('click', () => {
+        applyLanguage(currentLang === 'cs' ? 'en' : 'cs');
+      });
+
+      // -----------------------------------------------------------------------
+      // 5. Full Scene Keyframe Sequencer (Camera + Colors + Optics)
+      // -----------------------------------------------------------------------
+      const keyframes = [
+        { theta: -0.65, phi: 0.22, dist: 4.10, tintColor: '#38bdf8', coreColor: '#a5f3fc', bgColor: '#0c1b3a', ior: 1.38, frost: 0.04, coreGlow: 0.70 },
+        { theta: 0.15, phi: -0.10, dist: 3.45, tintColor: '#c084fc', coreColor: '#f5d0fe', bgColor: '#1e103c', ior: 1.48, frost: 0.08, coreGlow: 0.90 },
+        { theta: 0.72, phi: 0.24, dist: 4.15, tintColor: '#34d399', coreColor: '#a7f3d0', bgColor: '#062822', ior: 1.36, frost: 0.04, coreGlow: 0.75 }
+      ];
+      let kfPlaying = false;
+      let kfPlayTime = 0;
+      let lastKfSeg = -1;
+
+      function renderKeyframes() {
+        const list = document.getElementById('kfList');
+        list.innerHTML = '';
+        keyframes.forEach((kf, idx) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/60 border border-white/10 text-[11px]';
+          const deg = Math.round((kf.theta * 180) / Math.PI);
+          row.innerHTML = `<span class="w-2.5 h-2.5 rounded-full mr-2 shrink-0 border border-white/30" style="background:${kf.tintColor}"></span>
+            <button data-jump="${idx}" class="text-left text-slate-200 hover:text-sky-300 font-mono flex-1 truncate">KF ${idx + 1}: ${deg}° / z=${kf.dist.toFixed(1)}</button>
+            <button data-del="${idx}" class="ml-2 text-slate-400 hover:text-rose-400 font-bold px-1">×</button>`;
+          list.appendChild(row);
+        });
+        list.querySelectorAll('[data-jump]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const kf = keyframes[parseInt(btn.dataset.jump, 10)];
+            if (!kf) return;
+            kfPlaying = false;
+            actionPlaying = false;
+            state.camTheta = kf.theta;
+            state.camPhi = kf.phi;
+            state.camDist = kf.dist;
+            if (kf.tintColor) state.tintColor = kf.tintColor;
+            if (kf.coreColor) state.coreColor = kf.coreColor;
+            if (kf.bgColor) state.bgColor = kf.bgColor;
+            if (kf.ior !== undefined) state.ior = kf.ior;
+            if (kf.frost !== undefined) state.frost = kf.frost;
+            if (kf.coreGlow !== undefined) state.coreGlow = kf.coreGlow;
+            syncUI();
+            applyLanguage(currentLang);
+          });
+        });
+        list.querySelectorAll('[data-del]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            keyframes.splice(parseInt(btn.dataset.del, 10), 1);
+            renderKeyframes();
+          });
+        });
+      }
+
+      document.getElementById('addKfBtn').addEventListener('click', () => {
+        keyframes.push({
+          theta: state.camTheta,
+          phi: state.camPhi,
+          dist: state.camDist,
+          tintColor: state.tintColor,
+          coreColor: state.coreColor,
+          bgColor: state.bgColor,
+          ior: state.ior,
+          frost: state.frost,
+          coreGlow: state.coreGlow
+        });
+        renderKeyframes();
+      });
+
+      document.getElementById('clearKfBtn').addEventListener('click', () => {
+        keyframes.length = 0;
+        kfPlaying = false;
+        renderKeyframes();
+        applyLanguage(currentLang);
+      });
+
+      document.getElementById('playKfBtn').addEventListener('click', () => {
+        if (keyframes.length < 2) {
+          showToast(i18n[currentLang].toastNeed2Kf);
+          return;
+        }
+        actionPlaying = false;
+        kfPlaying = !kfPlaying;
+        kfPlayTime = 0;
+        lastKfSeg = -1;
+        applyLanguage(currentLang);
+      });
+
+      renderKeyframes();
+
+      // -----------------------------------------------------------------------
+      // 6. Action Replay Recorder (Drags + Zooms + Touch Ripples)
+      // -----------------------------------------------------------------------
+      let actionRecording = false;
+      let actionPlaying = false;
+      let actionRecStart = 0;
+      let actionPlayStart = 0;
+      let actionDuration = 0;
+      let recordedEvents = []; // { t, type: 'cam'|'ripple', theta, phi, dist, x, y, z }
+      let nextReplayIdx = 0;
+
+      document.getElementById('recActionBtn').addEventListener('click', () => {
+        if (!actionRecording) {
+          kfPlaying = false;
+          actionPlaying = false;
+          recordedEvents = [{ t: 0, type: 'cam', theta: state.camTheta, phi: state.camPhi, dist: state.camDist }];
+          actionRecStart = performance.now();
+          actionRecording = true;
+          document.getElementById('actionStatusBadge').textContent = 'REC';
+        } else {
+          actionDuration = (performance.now() - actionRecStart) * 0.001;
+          recordedEvents.push({ t: actionDuration, type: 'cam', theta: state.camTheta, phi: state.camPhi, dist: state.camDist });
+          actionRecording = false;
+          document.getElementById('actionStatusBadge').textContent = actionDuration.toFixed(1) + 's';
+        }
+        applyLanguage(currentLang);
+      });
+
+      document.getElementById('playActionBtn').addEventListener('click', () => {
+        if (recordedEvents.length < 2) {
+          showToast(i18n[currentLang].toastNoActions);
+          return;
+        }
+        kfPlaying = false;
+        actionRecording = false;
+        actionPlaying = !actionPlaying;
+        actionPlayStart = performance.now();
+        nextReplayIdx = 0;
+        applyLanguage(currentLang);
+      });
+
+      // -----------------------------------------------------------------------
+      // 7. Clean Canvas Recording & 4K Export (No UI / Controls)
+      // -----------------------------------------------------------------------
+      let mediaRecorder = null;
+      let recordedChunks = [];
+      let isRecording = false;
+      let exportSizeOverride = null;
+
+      function pickMimeType() {
+        const candidates = [
+          'video/mp4;codecs=avc1',
+          'video/mp4',
+          'video/webm;codecs=vp9',
+          'video/webm;codecs=vp8',
+          'video/webm'
+        ];
+        if (typeof MediaRecorder === 'undefined') return '';
+        for (const m of candidates) {
+          if (MediaRecorder.isTypeSupported(m)) return m;
+        }
+        return '';
+      }
+
+      function triggerDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }
+
+      function startLiveRecording() {
+        if (typeof MediaRecorder === 'undefined' || !canvas.captureStream) {
+          showError('MediaRecorder / captureStream is not supported in this browser.');
+          return;
+        }
+        const mime = pickMimeType();
+        const stream = canvas.captureStream(60);
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 18000000 } : { videoBitsPerSecond: 18000000 });
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        };
+        mediaRecorder.onstop = () => {
+          const type = mime || 'video/webm';
+          const ext = type.includes('mp4') ? 'mp4' : 'webm';
+          triggerDownload(new Blob(recordedChunks, { type }), `liquid_glass_recording.${ext}`);
+          showToast(i18n[currentLang].toastRecSaved);
+        };
+        mediaRecorder.start(250);
+        isRecording = true;
+        document.getElementById('recordDot').classList.add('animate-ping');
+        applyLanguage(currentLang);
+        showToast(i18n[currentLang].toastRecStarted);
+      }
+
+      function stopLiveRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        isRecording = false;
+        document.getElementById('recordDot').classList.remove('animate-ping');
+        applyLanguage(currentLang);
+      }
+
+      document.getElementById('recordBtn').addEventListener('click', () => {
+        if (isRecording) stopLiveRecording();
+        else startLiveRecording();
+      });
+
+      function getTargetResolution() {
+        const hBase = parseInt(document.getElementById('exportRes').value, 10);
+        const aspect = document.getElementById('exportAspect').value;
+        if (aspect === '16:9') return { w: Math.round((hBase * 16) / 9), h: hBase };
+        if (aspect === '9:16') return { w: hBase, h: Math.round((hBase * 16) / 9) };
+        return { w: hBase, h: hBase };
+      }
+
+      document.getElementById('exportPngBtn').addEventListener('click', () => {
+        const res = getTargetResolution();
+        exportSizeOverride = res;
+        resize();
+        renderFrame(performance.now());
+        canvas.toBlob((blob) => {
+          exportSizeOverride = null;
+          resize();
+          if (blob) {
+            triggerDownload(blob, `liquid_glass_${res.w}x${res.h}.png`);
+            showToast(i18n[currentLang].toastPngSaved);
+          }
+        }, 'image/png');
+      });
+
+      let offlineExportActive = false;
+      let cancelExportRequested = false;
+
+      document.getElementById('cancelExportBtn').addEventListener('click', () => {
+        cancelExportRequested = true;
+      });
+
+      async function pickSupportedAvcCodec(w, h) {
+        if (typeof VideoEncoder === 'undefined') return null;
+        const codecs = ['avc1.640034', 'avc1.4d0034', 'avc1.420034', 'avc1.42002a', 'avc1.42001f'];
+        for (const codec of codecs) {
+          try {
+            const sup = await VideoEncoder.isConfigSupported({ codec, width: w, height: h, bitrate: 25000000, framerate: 60 });
+            if (sup && sup.supported) return codec;
+          } catch (e) {}
+        }
+        return null;
+      }
+
+      async function runCleanVideoExport(durationMs, onStartPlay, filenamePrefix) {
+        const res = getTargetResolution();
+        // Ensure even dimensions for H.264
+        res.w = res.w & ~1;
+        res.h = res.h & ~1;
+        const fps = parseInt(document.getElementById('exportFps').value, 10) || 60;
+        const totalFrames = Math.max(2, Math.round((durationMs / 1000) * fps));
+
+        const avcCodec = await pickSupportedAvcCodec(res.w, res.h);
+        if (avcCodec && typeof Mp4Muxer !== 'undefined' && typeof VideoFrame !== 'undefined') {
+          offlineExportActive = true;
+          cancelExportRequested = false;
+          exportSizeOverride = res;
+          resize();
+
+          const modal = document.getElementById('exportProgressModal');
+          const bar = document.getElementById('exportProgBar');
+          const pctEl = document.getElementById('exportProgPct');
+          const detailEl = document.getElementById('exportProgDetail');
+          const titleEl = document.getElementById('exportProgTitle');
+          titleEl.textContent = currentLang === 'cs' ? `Renderuji ${res.w}×${res.h} MP4 (${fps} fps)...` : `Rendering ${res.w}×${res.h} MP4 (${fps} fps)...`;
+          modal.classList.remove('hidden');
+
+          const muxer = new Mp4Muxer.Muxer({
+            target: new Mp4Muxer.ArrayBufferTarget(),
+            video: { codec: 'avc', width: res.w, height: res.h },
+            fastStart: 'in-memory'
+          });
+
+          const encoder = new VideoEncoder({
+            output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+            error: (e) => console.error(e)
+          });
+
+          const bitrate = res.w >= 3840 ? 35000000 : (res.w >= 2560 ? 22000000 : 14000000);
+          encoder.configure({
+            codec: avcCodec,
+            width: res.w,
+            height: res.h,
+            bitrate,
+            framerate: fps
+          });
+
+          onStartPlay();
+          const dtSec = 1.0 / fps;
+          const baseSimTime = (performance.now() - startTime) * 0.001;
+
+          for (let i = 0; i < totalFrames; i++) {
+            if (cancelExportRequested) break;
+            const simT = baseSimTime + i * dtSec;
+            renderFrame(performance.now(), dtSec, simT);
+            gl.finish();
+
+            const frame = new VideoFrame(canvas, {
+              timestamp: Math.round(i * (1000000 / fps)),
+              duration: Math.round(1000000 / fps)
+            });
+            encoder.encode(frame, { keyFrame: i % fps === 0 });
+            frame.close();
+
+            if (i % 2 === 0 || i === totalFrames - 1) {
+              const pct = Math.round(((i + 1) / totalFrames) * 100);
+              bar.style.width = pct + '%';
+              pctEl.textContent = pct + '%';
+              detailEl.textContent = `${i + 1} / ${totalFrames}`;
+              while (encoder.encodeQueueSize > 8) {
+                await new Promise((r) => setTimeout(r, 8));
+              }
+              await new Promise((r) => setTimeout(r, 0));
+            }
+          }
+
+          if (!cancelExportRequested) {
+            await encoder.flush();
+            muxer.finalize();
+            triggerDownload(new Blob([muxer.target.buffer], { type: 'video/mp4' }), `${filenamePrefix}_${res.w}x${res.h}_${fps}fps.mp4`);
+            showToast(i18n[currentLang].toastExportDone);
+          } else {
+            try { encoder.close(); } catch (e) {}
+          }
+
+          modal.classList.add('hidden');
+          offlineExportActive = false;
+          exportSizeOverride = null;
+          kfPlaying = false;
+          actionPlaying = false;
+          resize();
+          applyLanguage(currentLang);
+          return;
+        }
+
+        // Fallback to MediaRecorder if WebCodecs is unavailable
+        if (typeof MediaRecorder === 'undefined' || !canvas.captureStream) {
+          showError('Video export is not supported in this browser.');
+          return;
+        }
+        exportSizeOverride = res;
+        resize();
+        const mime = pickMimeType();
+        const stream = canvas.captureStream(fps);
+        const chunks = [];
+        const bitrate = res.w >= 3840 ? 36000000 : 18000000;
+        const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+        rec.onstop = () => {
+          exportSizeOverride = null;
+          kfPlaying = false;
+          actionPlaying = false;
+          resize();
+          applyLanguage(currentLang);
+          const type = mime || 'video/webm';
+          const ext = type.includes('mp4') ? 'mp4' : 'webm';
+          triggerDownload(new Blob(chunks, { type }), `${filenamePrefix}_${res.w}x${res.h}.${ext}`);
+          showToast(i18n[currentLang].toastExportDone);
+        };
+        onStartPlay();
+        rec.start(250);
+        showToast(`${i18n[currentLang].toastExporting} (${res.w}×${res.h})`);
+        setTimeout(() => {
+          if (rec.state !== 'inactive') rec.stop();
+        }, durationMs + 150);
+      }
+
+      document.getElementById('exportKfVideoBtn').addEventListener('click', () => {
+        if (keyframes.length < 2) {
+          showToast(i18n[currentLang].toastNeed2Kf);
+          return;
+        }
+        const mode = document.getElementById('kfLoopMode').value;
+        const segCount = mode === 'pingpong' ? (keyframes.length - 1) * 2 : (mode === 'loop' ? keyframes.length : keyframes.length - 1);
+        const totalMs = segCount * state.kfDuration * 1000;
+        runCleanVideoExport(totalMs, () => {
+          actionPlaying = false;
+          kfPlaying = true;
+          kfPlayTime = 0;
+          lastKfSeg = -1;
+        }, 'liquid_glass_keyframes');
+      });
+
+      document.getElementById('exportActionVideoBtn').addEventListener('click', () => {
+        if (recordedEvents.length < 2 || actionDuration <= 0.1) {
+          showToast(i18n[currentLang].toastNoActions);
+          return;
+        }
+        runCleanVideoExport(actionDuration * 1000, () => {
+          kfPlaying = false;
+          actionPlaying = true;
+          kfPlayTime = 0;
+          actionPlayStart = performance.now();
+          nextReplayIdx = 0;
+        }, 'liquid_glass_actions');
+      });
+
+      // -----------------------------------------------------------------------
+      // 8. Multi-Touch Pinch-to-Zoom + 1-Finger Orbit + Touch Ripples
+      // -----------------------------------------------------------------------
+      const touchPool = [
+        { x: 0, y: 0, z: 0, startTime: -10 },
+        { x: 0, y: 0, z: 0, startTime: -10 },
+        { x: 0, y: 0, z: 0, startTime: -10 },
+        { x: 0, y: 0, z: 0, startTime: -10 }
+      ];
+      let nextTouchIdx = 0;
+      const startTime = performance.now();
+
+      function triggerRippleAt(x, y, z) {
+        touchPool[nextTouchIdx] = { x, y, z, startTime: (performance.now() - startTime) * 0.001 };
+        nextTouchIdx = (nextTouchIdx + 1) % 4;
+        if (actionRecording) {
+          recordedEvents.push({ t: (performance.now() - actionRecStart) * 0.001, type: 'ripple', x, y, z });
+        }
+      }
+
+      function triggerCenterPulse() {
+        triggerRippleAt(0.0, 0.0, 0.42);
+      }
+
+      function getCamPos() {
+        return [
+          state.camDist * Math.cos(state.camPhi) * Math.sin(state.camTheta),
+          state.camDist * Math.sin(state.camPhi),
+          state.camDist * Math.cos(state.camPhi) * Math.cos(state.camTheta)
+        ];
+      }
+
+      function spawnTouchRipple(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const minDim = Math.min(rect.width, rect.height);
+        const uvx = (clientX - rect.left - 0.5 * rect.width) / minDim;
+        const uvy = -(clientY - rect.top - 0.5 * rect.height) / minDim;
+
+        const ro = getCamPos();
+        const fwLen = Math.hypot(ro[0], ro[1], ro[2]) || 1;
+        const fw = [-ro[0] / fwLen, -ro[1] / fwLen, -ro[2] / fwLen];
+        let rtx = -fw[2], rty = 0, rtz = fw[0];
+        const rtLen = Math.hypot(rtx, rty, rtz) || 1;
+        rtx /= rtLen; rtz /= rtLen;
+        const upx = rty * fw[2] - rtz * fw[1];
+        const upy = rtz * fw[0] - rtx * fw[2];
+        const upz = rtx * fw[1] - rty * fw[0];
+
+        let rdx = fw[0] * state.fov + rtx * uvx + upx * uvy;
+        let rdy = fw[1] * state.fov + rty * uvx + upy * uvy;
+        let rdz = fw[2] * state.fov + rtz * uvx + upz * uvy;
+        const rdLen = Math.hypot(rdx, rdy, rdz) || 1;
+        rdx /= rdLen; rdy /= rdLen; rdz /= rdLen;
+
+        const tHit = Math.max(0.5, state.camDist - 0.45);
+        const hx = Math.max(-1.55, Math.min(1.55, ro[0] + rdx * tHit));
+        const hy = Math.max(-0.62, Math.min(0.62, ro[1] + rdy * tHit));
+        const hz = Math.max(-0.46, Math.min(0.46, ro[2] + rdz * tHit));
+
+        triggerRippleAt(hx, hy, hz);
+      }
+
+      document.getElementById('pulseBtn').addEventListener('click', triggerCenterPulse);
+
+      const activePointers = new Map();
+      let prevPinchDist = null;
+
+      canvas.addEventListener('pointerdown', (e) => {
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        canvas.setPointerCapture(e.pointerId);
+        if (activePointers.size === 1) {
+          spawnTouchRipple(e.clientX, e.clientY);
+          prevPinchDist = null;
+        } else if (activePointers.size === 2) {
+          const pts = Array.from(activePointers.values());
+          prevPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        }
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!activePointers.has(e.pointerId)) return;
+        const prev = activePointers.get(e.pointerId);
+        const dx = e.clientX - prev.x;
+        const dy = e.clientY - prev.y;
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (activePointers.size === 1) {
+          kfPlaying = false;
+          actionPlaying = false;
+          state.camTheta -= dx * 0.007;
+          state.camPhi = Math.max(-1.15, Math.min(1.15, state.camPhi + dy * 0.007));
+        } else if (activePointers.size === 2) {
+          const pts = Array.from(activePointers.values());
+          const curDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          if (prevPinchDist !== null && curDist > 10) {
+            const delta = prevPinchDist - curDist;
+            state.camDist = Math.max(2.0, Math.min(8.5, state.camDist + delta * 0.012));
+          }
+          prevPinchDist = curDist;
+        }
+        if (actionRecording) {
+          recordedEvents.push({ t: (performance.now() - actionRecStart) * 0.001, type: 'cam', theta: state.camTheta, phi: state.camPhi, dist: state.camDist });
+        }
+      });
+
+      function handlePointerUp(e) {
+        activePointers.delete(e.pointerId);
+        if (activePointers.size < 2) prevPinchDist = null;
+      }
+      canvas.addEventListener('pointerup', handlePointerUp);
+      canvas.addEventListener('pointercancel', handlePointerUp);
+
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        state.camDist = Math.max(2.0, Math.min(8.5, state.camDist + e.deltaY * 0.003));
+        if (actionRecording) {
+          recordedEvents.push({ t: (performance.now() - actionRecStart) * 0.001, type: 'cam', theta: state.camTheta, phi: state.camPhi, dist: state.camDist });
+        }
+      }, { passive: false });
+
+      // -----------------------------------------------------------------------
+      // 9. Resize & Render Loop
+      // -----------------------------------------------------------------------
+      function resize() {
+        let w, h;
+        if (exportSizeOverride) {
+          w = exportSizeOverride.w;
+          h = exportSizeOverride.h;
+        } else {
+          const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+          w = Math.max(1, Math.floor(window.innerWidth * dpr));
+          h = Math.max(1, Math.floor(window.innerHeight * dpr));
+        }
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          gl.viewport(0, 0, w, h);
+        }
+      }
+      window.addEventListener('resize', () => {
+        resize();
+        updatePanelVisibility();
+      });
+
+      let frameCount = 0;
+      let lastFpsTime = performance.now();
+      let lastFrameTime = performance.now();
+      let lastAutoWaveTime = 0;
+      const fpsBadge = document.getElementById('fpsBadge');
+
+      function smoothstep(x) {
+        return x * x * (3 - 2 * x);
+      }
+
+      function renderFrame(now, fixedDt, overrideTime) {
+        resize();
+        const dt = (fixedDt !== undefined) ? fixedDt : Math.min(0.1, (now - lastFrameTime) * 0.001);
+        lastFrameTime = now;
+        const t = (overrideTime !== undefined) ? overrideTime : (now - startTime) * 0.001;
+
+        if (document.getElementById('autoWaveChk').checked && t - lastAutoWaveTime > 1.8) {
+          lastAutoWaveTime = t;
+          triggerRippleAt(0.0, 0.0, 0.42);
+        }
+
+        if (actionPlaying && recordedEvents.length >= 2) {
+          const elapsed = (overrideTime !== undefined) ? (kfPlayTime += dt) : (now - actionPlayStart) * 0.001;
+          while (nextReplayIdx < recordedEvents.length && recordedEvents[nextReplayIdx].t <= elapsed) {
+            const ev = recordedEvents[nextReplayIdx];
+            if (ev.type === 'ripple') {
+              touchPool[nextTouchIdx] = { x: ev.x, y: ev.y, z: ev.z, startTime: t };
+              nextTouchIdx = (nextTouchIdx + 1) % 4;
+            }
+            nextReplayIdx++;
+          }
+          // Interpolate camera between surrounding cam events
+          let prevCam = null;
+          let nextCam = null;
+          for (let i = 0; i < recordedEvents.length; i++) {
+            if (recordedEvents[i].type === 'cam') {
+              if (recordedEvents[i].t <= elapsed) prevCam = recordedEvents[i];
+              else { nextCam = recordedEvents[i]; break; }
+            }
+          }
+          if (prevCam && nextCam) {
+            const u = Math.max(0, Math.min(1, (elapsed - prevCam.t) / Math.max(0.001, nextCam.t - prevCam.t)));
+            state.camTheta = prevCam.theta + (nextCam.theta - prevCam.theta) * u;
+            state.camPhi = prevCam.phi + (nextCam.phi - prevCam.phi) * u;
+            state.camDist = prevCam.dist + (nextCam.dist - prevCam.dist) * u;
+          } else if (prevCam && !nextCam && elapsed >= actionDuration) {
+            actionPlaying = false;
+            applyLanguage(currentLang);
+          }
+        } else if (kfPlaying && keyframes.length >= 2) {
+          kfPlayTime += dt;
+          const mode = document.getElementById('kfLoopMode').value;
+          const n = keyframes.length;
+
+          let a, b, localU, segIdx;
+          if (mode === 'pingpong') {
+            const forwardCount = n - 1;
+            const totalSegs = forwardCount * 2;
+            const totalDur = totalSegs * state.kfDuration;
+            const loopT = kfPlayTime % totalDur;
+            segIdx = Math.min(totalSegs - 1, Math.floor(loopT / state.kfDuration));
+            localU = smoothstep((loopT - segIdx * state.kfDuration) / state.kfDuration);
+            if (segIdx < forwardCount) {
+              a = keyframes[segIdx];
+              b = keyframes[segIdx + 1];
+            } else {
+              const rev = totalSegs - 1 - segIdx;
+              a = keyframes[rev + 1];
+              b = keyframes[rev];
+            }
+          } else if (mode === 'loop') {
+            const totalDur = n * state.kfDuration;
+            const loopT = kfPlayTime % totalDur;
+            segIdx = Math.min(n - 1, Math.floor(loopT / state.kfDuration));
+            localU = smoothstep((loopT - segIdx * state.kfDuration) / state.kfDuration);
+            a = keyframes[segIdx];
+            b = keyframes[(segIdx + 1) % n];
+          } else {
+            const totalSegs = n - 1;
+            const totalDur = totalSegs * state.kfDuration;
+            if (kfPlayTime >= totalDur) {
+              kfPlaying = false;
+              a = keyframes[n - 1];
+              b = keyframes[n - 1];
+              localU = 1.0;
+              segIdx = totalSegs - 1;
+              applyLanguage(currentLang);
+            } else {
+              segIdx = Math.min(totalSegs - 1, Math.floor(kfPlayTime / state.kfDuration));
+              localU = smoothstep((kfPlayTime - segIdx * state.kfDuration) / state.kfDuration);
+              a = keyframes[segIdx];
+              b = keyframes[segIdx + 1];
+            }
+          }
+
+          if (segIdx !== lastKfSeg) {
+            lastKfSeg = segIdx;
+            if (document.getElementById('kfPulseChk').checked) triggerRippleAt(0.0, 0.0, 0.42);
+          }
+
+          state.camTheta = a.theta + (b.theta - a.theta) * localU;
+          state.camPhi = a.phi + (b.phi - a.phi) * localU;
+          state.camDist = a.dist + (b.dist - a.dist) * localU;
+
+          if (document.getElementById('kfMorphChk').checked && a.tintColor && b.tintColor) {
+            state.tintColor = lerpHex(a.tintColor, b.tintColor, localU);
+            state.coreColor = lerpHex(a.coreColor || state.coreColor, b.coreColor || state.coreColor, localU);
+            state.bgColor = lerpHex(a.bgColor || state.bgColor, b.bgColor || state.bgColor, localU);
+            if (a.ior !== undefined && b.ior !== undefined) state.ior = a.ior + (b.ior - a.ior) * localU;
+            if (a.frost !== undefined && b.frost !== undefined) state.frost = a.frost + (b.frost - a.frost) * localU;
+            if (a.coreGlow !== undefined && b.coreGlow !== undefined) state.coreGlow = a.coreGlow + (b.coreGlow - a.coreGlow) * localU;
+          }
+        } else if (activePointers.size === 0 && Math.abs(state.autoSpin) > 0.001) {
+          state.camTheta += state.autoSpin * dt;
+        }
+
+        gl.useProgram(program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sdfTex);
+        gl.uniform1i(uLoc.uSdfTex, 0);
+
+        gl.uniform2f(uLoc.uResolution, canvas.width, canvas.height);
+        gl.uniform1f(uLoc.uTime, t);
+        gl.uniform1i(uLoc.uShape, state.shape);
+
+        const cam = getCamPos();
+        gl.uniform3f(uLoc.uCamPos, cam[0], cam[1], cam[2]);
+        gl.uniform3f(uLoc.uCamTarget, 0.0, 0.0, 0.0);
+        gl.uniform1f(uLoc.uFov, state.fov);
+
+        gl.uniform1f(uLoc.uIor, state.ior);
+        gl.uniform1f(uLoc.uDispersion, state.dispersion);
+        gl.uniform1f(uLoc.uFrost, state.frost);
+        gl.uniform1f(uLoc.uCoreFrost, state.coreFrost);
+        gl.uniform1f(uLoc.uIridescence, state.iridescence);
+        gl.uniform1f(uLoc.uCoreScale, state.coreScale);
+        gl.uniform1f(uLoc.uCoreDepth, state.coreDepth);
+        gl.uniform1f(uLoc.uCoreGlow, state.coreGlow);
+
+        const az = (state.lightAzimuth * Math.PI) / 180;
+        const el = (state.lightElevation * Math.PI) / 180;
+        gl.uniform3f(
+          uLoc.uLightDir,
+          Math.cos(el) * Math.sin(az),
+          Math.sin(el),
+          Math.cos(el) * Math.cos(az)
+        );
+        const lc = hexToRgb(state.lightColor);
+        gl.uniform3f(uLoc.uLightColor, lc[0], lc[1], lc[2]);
+        gl.uniform1f(uLoc.uLightIntensity, state.lightIntensity);
+
+        const tc = hexToRgb(state.tintColor);
+        gl.uniform3f(uLoc.uTintColor, tc[0], tc[1], tc[2]);
+        const cc = hexToRgb(state.coreColor);
+        gl.uniform3f(uLoc.uCoreColor, cc[0], cc[1], cc[2]);
+        const bc = hexToRgb(state.bgColor);
+        gl.uniform3f(uLoc.uBgColor, bc[0], bc[1], bc[2]);
+
+        gl.uniform1f(uLoc.uAbsorption, state.absorption);
+        gl.uniform1f(uLoc.uRoundness, state.roundness);
+        gl.uniform1f(uLoc.uRipples, state.ripples);
+        gl.uniform1f(uLoc.uFlowSpeed, state.flowSpeed);
+
+        for (let i = 0; i < 4; i++) {
+          const tp = touchPool[i];
+          const age = tp.startTime < 0 ? -1.0 : t - tp.startTime;
+          gl.uniform4f(uLoc[`uTouchPoints[${i}]`], tp.x, tp.y, tp.z, age);
+        }
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        frameCount++;
+        if (now - lastFpsTime >= 500) {
+          const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+          fpsBadge.textContent = fps + ' fps';
+          frameCount = 0;
+          lastFpsTime = now;
+        }
+      }
+
+      function loop(now) {
+        if (!offlineExportActive) renderFrame(now);
+        requestAnimationFrame(loop);
+      }
+
+      syncUI();
+      applyLanguage('cs');
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
