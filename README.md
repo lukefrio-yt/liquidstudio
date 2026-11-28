@@ -2,11 +2,11 @@
 
 > **A real-time WebGL2 raymarched SDF Liquid Glass shader studio with 16-bit float text/SVG etching, 6 3D shapes, keyframe animation, and 4K MP4 export.**
 
-[🇬🇧 English](#-english) | [🇨🇿 Čeština](#-čeština)
+[English](#english) | [Čeština](#čeština)
 
 ---
 
-## 🇬🇧 English
+## English
 
 ### Overview
 **Liquid Glass SDF Studio** is a browser-based, real-time **WebGL2 raymarching** and **Signed Distance Field (SDF)** studio focused on physically inspired **Liquid Glass** optics—featuring smooth refraction, chromatic dispersion, Fresnel reflections, and glossy specular highlights.
@@ -26,7 +26,7 @@
 
 ---
 
-## 🇨🇿 Čeština
+## Čeština
 
 ### Přehled
 **Liquid Glass SDF Studio** je webové studio běžící v reálném čase na **WebGL2 raymarchingu** a **Signed Distance Field (SDF)** geometrii. Zaměřuje se na realistickou optiku **tekutého skla (Liquid Glass)** – včetně lomu světla, chromatické disperze, Fresnelových odrazů a hladkých zrcadlových odlesků.
